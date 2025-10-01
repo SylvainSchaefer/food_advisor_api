@@ -1,0 +1,29 @@
+[package]
+name = "food_advisor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4.4"
+actix-cors = "0.7"
+tokio = { version = "1.35", features = ["full"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "mysql", "chrono"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dotenv = "0.15"
+bcrypt = "0.15"
+jsonwebtoken = "9.2"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+validator = { version = "0.16", features = ["derive"] }
+actix-web-httpauth = "0.8.2"
+env_logger = "0.11.8"
+log = "0.4"
+
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3

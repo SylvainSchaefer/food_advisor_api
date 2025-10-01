@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: food_advisor_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_secure
+      MYSQL_DATABASE: food_advisor_db
+      MYSQL_USER: food_advisor_admin
+      MYSQL_PASSWORD: admin
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+      - ./docker/mysql/conf.d:/etc/mysql/conf.d
+    networks:
+      - food_advisor_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password_secure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  rust-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: food_advisor_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql://food_advisor_user:user@mysql:3306/food_advisor_db
+      JWT_SECRET: ${JWT_SECRET:-your_default_jwt_secret_here_change_in_production}
+      JWT_EXPIRATION: 86400
+      RUST_LOG: debug
+      RUST_BACKTRACE: 1
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./src:/app/src
+      - ./Cargo.toml:/app/Cargo.toml
+      - ./Cargo.lock:/app/Cargo.lock
+      - cargo_cache:/usr/local/cargo/registry
+      - cargo_git:/usr/local/cargo/git
+      - target_cache:/app/target
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - food_advisor_network
+    command: ["cargo", "watch", "-x", "run", "-w", "src"]
+
+volumes:
+  mysql_data:
+  cargo_cache:
+  cargo_git:
+  target_cache:
+
+networks:
+  food_advisor_network:
+    driver: bridge
