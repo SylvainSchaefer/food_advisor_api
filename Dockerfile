@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     default-libmysqlclient-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Installer cargo-watch pour le hot reload
@@ -17,17 +18,18 @@ WORKDIR /app
 # Copier les fichiers de dépendances
 COPY Cargo.toml Cargo.lock ./
 
-# Créer un src dummy pour build les dépendances
+# Pré-compiler les dépendances (optionnel mais recommandé)
 RUN mkdir src && \
     echo "fn main() {}" > src/main.rs && \
     cargo build && \
-    rm -rf src
+    rm -rf src target/debug/food_advisor* target/debug/deps/food_advisor*
 
-# Les sources seront montées via volume dans docker-compose
-# COPY src ./src
+# Copier et rendre exécutable le script d'entrypoint
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Exposer le port
 EXPOSE 8080
 
-# La commande sera définie dans docker-compose.yml
-CMD ["cargo", "watch", "-x", "run", "-w", "src"]
+# Utiliser le script d'entrypoint
+ENTRYPOINT ["/entrypoint.sh"]

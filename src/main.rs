@@ -1,7 +1,7 @@
-mod models;
 mod handlers;
-mod auth;
-mod repository;
+mod utils;
+mod repositories;
+mod models;
 
 use actix_web::{web, App, HttpServer, middleware};
 use actix_web_httpauth::middleware::HttpAuthentication;
@@ -12,13 +12,20 @@ use std::time::Duration;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenv().ok();
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    println!("🚀 Starting Food Advisor API...");
     
-    // Récupérer l'hôte et le port depuis les variables d'environnement
-    let host = std::env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    dotenv().ok();
+    println!("✅ Environment variables loaded");
+    
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    println!("✅ Logger initialized");
+
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+    println!("✅ Database URL: {}", database_url);
+    
+    let host = std::env::var("SERVER_HOST")
+        .unwrap_or_else(|_| "0.0.0.0".to_string());
     let port = std::env::var("SERVER_PORT")
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
@@ -26,7 +33,6 @@ async fn main() -> std::io::Result<()> {
 
     println!("🔌 Connecting to database...");
     
-    // Ajouter des tentatives de connexion avec délai pour attendre MySQL
     let mut retries = 5;
     let mut pool = None;
     
@@ -39,11 +45,12 @@ async fn main() -> std::io::Result<()> {
         {
             Ok(p) => {
                 pool = Some(p);
+                println!("✅ Database connection established");
                 break;
             }
             Err(e) => {
-                println!("⏳ Database connection failed, retrying... ({} attempts left)", retries);
-                println!("   Error: {}", e);
+                eprintln!("⏳ Database connection failed, retrying... ({} attempts left)", retries);
+                eprintln!("   Error: {}", e);
                 retries -= 1;
                 if retries > 0 {
                     tokio::time::sleep(Duration::from_secs(5)).await;
@@ -54,15 +61,20 @@ async fn main() -> std::io::Result<()> {
     
     let pool = pool.expect("Failed to connect to database after multiple attempts");
     
-    println!("✅ Database connection established");
-    
     // Test de la connexion
-    sqlx::query("SELECT 1")
+    match sqlx::query("SELECT 1")
         .fetch_one(&pool)
         .await
-        .expect("Failed to execute test query");
-    
-    println!("✅ Database is responding");
+    {
+        Ok(_) => println!("✅ Database is responding"),
+        Err(e) => {
+            eprintln!("❌ Database test query failed: {}", e);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Database not responding"
+            ));
+        }
+    }
     
     let bind_address = format!("{}:{}", host, port);
     println!("\n🚀 Server starting on http://{}", bind_address);
@@ -71,20 +83,19 @@ async fn main() -> std::io::Result<()> {
         if std::env::var("JWT_SECRET").is_ok() { "✅" } else { "❌" }
     );
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         let cors = Cors::default()
             .allow_any_origin()
             .allow_any_method()
             .allow_any_header()
             .max_age(3600);
 
-        let auth = HttpAuthentication::bearer(auth::validator);
+        let auth = HttpAuthentication::bearer(utils::validator);
 
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .wrap(middleware::Logger::default())
             .wrap(cors)
-            // Route de santé pour vérifier que l'API fonctionne
             .route("/health", web::get().to(health_check))
             .service(
                 web::scope("/api")
@@ -98,7 +109,6 @@ async fn main() -> std::io::Result<()> {
                             .wrap(auth.clone())
                             .route("/profile", web::get().to(handlers::get_profile))
                             .route("/all", web::get().to(handlers::get_all_users))
-                            .route("/{id}/deactivate", web::put().to(handlers::deactivate_user))
                     )
                     .service(
                         web::scope("/admin")
@@ -107,9 +117,12 @@ async fn main() -> std::io::Result<()> {
                     )
             )
     })
-    .bind(&bind_address)?
-    .run()
-    .await
+    .bind(&bind_address)?;
+    
+    println!("✅ Server bound to {}", bind_address);
+    println!("🎉 Server is now running and listening for requests!");
+    
+    server.run().await
 }
 
 // Endpoint de santé

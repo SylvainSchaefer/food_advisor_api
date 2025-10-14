@@ -20,7 +20,7 @@ up: ## Démarrer les conteneurs
 	@echo "$(GREEN)Démarrage des conteneurs...$(NC)"
 	docker compose up -d
 	@echo "$(GREEN)✓ API disponible sur http://localhost:8080$(NC)"
-	@echo "$(GREEN)✓ MySQL disponible sur localhost:3306$(NC)"
+	@echo "$(GREEN)✓ MySQL disponible sur localhost:3307 (redirigé vers 3306 sur docker)$(NC)"
 
 down: ## Arrêter les conteneurs
 	@echo "$(YELLOW)Arrêt des conteneurs...$(NC)"

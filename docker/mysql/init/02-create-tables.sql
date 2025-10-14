@@ -1,330 +1,330 @@
 USE food_advisor_db;
 
 -- =============================================
--- Fichier: 01_tables.sql
--- Description: Création des tables pour le système de recettes
--- Base de données: MySQL 8.0+
+-- File: 01_tables.sql
+-- Description: Table creation for recipe system
+-- Database: MySQL 8.0+
 -- =============================================
 
--- Supprimer les tables existantes (dans l'ordre inverse des dépendances)
-DROP TABLE IF EXISTS liste_courses_ingredients;
-DROP TABLE IF EXISTS liste_courses;
-DROP TABLE IF EXISTS commentaires;
-DROP TABLE IF EXISTS historique_recettes;
-DROP TABLE IF EXISTS stocks_utilisateur;
-DROP TABLE IF EXISTS etapes_recette;
-DROP TABLE IF EXISTS ingredients_recette;
-DROP TABLE IF EXISTS recettes_favoris;
-DROP TABLE IF EXISTS recettes;
-DROP TABLE IF EXISTS preferences_ingredients;
-DROP TABLE IF EXISTS preferences_alimentaires;
-DROP TABLE IF EXISTS ingredients_allergenes;
-DROP TABLE IF EXISTS allergenes;
+-- Drop existing tables (in reverse dependency order)
+DROP TABLE IF EXISTS shopping_list_ingredients;
+DROP TABLE IF EXISTS shopping_lists;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS recipe_history;
+DROP TABLE IF EXISTS user_stock;
+DROP TABLE IF EXISTS recipe_steps;
+DROP TABLE IF EXISTS recipe_ingredients;
+DROP TABLE IF EXISTS favorite_recipes;
+DROP TABLE IF EXISTS recipes;
+DROP TABLE IF EXISTS ingredient_preferences;
+DROP TABLE IF EXISTS dietary_preferences;
+DROP TABLE IF EXISTS ingredient_allergens;
+DROP TABLE IF EXISTS allergens;
 DROP TABLE IF EXISTS ingredients;
-DROP TABLE IF EXISTS categories_ingredients;
-DROP TABLE IF EXISTS utilisateurs;
-DROP TABLE IF EXISTS regimes_alimentaires;
+DROP TABLE IF EXISTS ingredient_categories;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS dietary_regimens;
 
 -- =============================================
--- Table: regimes_alimentaires
+-- Table: dietary_regimens
 -- =============================================
-CREATE TABLE regimes_alimentaires (
+CREATE TABLE dietary_regimens (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    nom VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: utilisateurs
+-- Table: users
 -- =============================================
-CREATE TABLE utilisateurs (
+CREATE TABLE users (
     id INT PRIMARY KEY AUTO_INCREMENT,
     email VARCHAR(255) UNIQUE NOT NULL,
-    mot_de_passe VARCHAR(255) NOT NULL,
-    nom VARCHAR(100) NOT NULL,
-    prenom VARCHAR(100) NOT NULL,
-    date_naissance DATE,
-    sexe ENUM('M', 'F', 'Autre') DEFAULT 'Autre',
-    ville VARCHAR(100),
-    code_postal VARCHAR(10),
-    pays VARCHAR(100) DEFAULT 'France',
-    role ENUM('utilisateur', 'administrateur') DEFAULT 'utilisateur',
-    regime_alimentaire_id INT,
-    actif BOOLEAN DEFAULT TRUE,
+    password_hash VARCHAR(255) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE,
+    gender ENUM('M', 'F', 'OTHER') DEFAULT 'OTHER',
+    city VARCHAR(100),
+    postal_code VARCHAR(10),
+    country VARCHAR(100) DEFAULT 'France',
+    role ENUM('user', 'administrator') DEFAULT 'user',
+    dietary_regimen_id INT,
+    active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (regime_alimentaire_id) REFERENCES regimes_alimentaires(id) ON DELETE SET NULL,
+    FOREIGN KEY (dietary_regimen_id) REFERENCES dietary_regimens(id) ON DELETE SET NULL,
     INDEX idx_email (email),
     INDEX idx_role (role)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: categories_ingredients
+-- Table: ingredient_categories
 -- =============================================
-CREATE TABLE categories_ingredients (
+CREATE TABLE ingredient_categories (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    nom VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
-    icone VARCHAR(50),
+    icon VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
 -- Table: ingredients
 -- =============================================
 CREATE TABLE ingredients (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    nom VARCHAR(100) UNIQUE NOT NULL,
-    categorie_id INT NOT NULL,
-    unite_mesure ENUM('g', 'kg', 'ml', 'l', 'piece', 'cuillere_cafe', 'cuillere_soupe', 'tasse', 'pincee') DEFAULT 'g',
-    calories_par_100g DECIMAL(6,2),
-    proteines_par_100g DECIMAL(5,2),
-    glucides_par_100g DECIMAL(5,2),
-    lipides_par_100g DECIMAL(5,2),
-    fibres_par_100g DECIMAL(5,2),
-    prix_estime DECIMAL(6,2),
-    duree_conservation_jours INT DEFAULT 7,
-    cree_par INT,
-    approuve BOOLEAN DEFAULT FALSE,
+    name VARCHAR(100) UNIQUE NOT NULL,
+    category_id INT NOT NULL,
+    unit_of_measure ENUM('g', 'kg', 'ml', 'l', 'piece', 'teaspoon', 'tablespoon', 'cup', 'pinch') DEFAULT 'g',
+    calories_per_100g DECIMAL(6,2),
+    protein_per_100g DECIMAL(5,2),
+    carbs_per_100g DECIMAL(5,2),
+    fat_per_100g DECIMAL(5,2),
+    fiber_per_100g DECIMAL(5,2),
+    estimated_price DECIMAL(6,2),
+    shelf_life_days INT DEFAULT 7,
+    created_by INT,
+    approved BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (categorie_id) REFERENCES categories_ingredients(id),
-    FOREIGN KEY (cree_par) REFERENCES utilisateurs(id) ON DELETE SET NULL,
-    INDEX idx_nom (nom),
-    INDEX idx_categorie (categorie_id),
-    INDEX idx_approuve (approuve)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (category_id) REFERENCES ingredient_categories(id),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_name (name),
+    INDEX idx_category (category_id),
+    INDEX idx_approved (approved)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: allergenes
+-- Table: allergens
 -- =============================================
-CREATE TABLE allergenes (
+CREATE TABLE allergens (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    nom VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
-    niveau_risque ENUM('faible', 'moyen', 'eleve') DEFAULT 'moyen',
+    risk_level ENUM('low', 'medium', 'high') DEFAULT 'medium',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: ingredients_allergenes
+-- Table: ingredient_allergens
 -- =============================================
-CREATE TABLE ingredients_allergenes (
+CREATE TABLE ingredient_allergens (
     ingredient_id INT NOT NULL,
-    allergene_id INT NOT NULL,
-    PRIMARY KEY (ingredient_id, allergene_id),
+    allergen_id INT NOT NULL,
+    PRIMARY KEY (ingredient_id, allergen_id),
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
-    FOREIGN KEY (allergene_id) REFERENCES allergenes(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (allergen_id) REFERENCES allergens(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: preferences_alimentaires
+-- Table: dietary_preferences
 -- =============================================
-CREATE TABLE preferences_alimentaires (
+CREATE TABLE dietary_preferences (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    utilisateur_id INT NOT NULL,
-    allergene_id INT,
-    type_preference ENUM('allergie', 'intolerance', 'aversion') NOT NULL,
-    severite ENUM('legere', 'moderee', 'severe') DEFAULT 'moderee',
+    user_id INT NOT NULL,
+    allergen_id INT,
+    preference_type ENUM('allergy', 'intolerance', 'aversion') NOT NULL,
+    severity ENUM('mild', 'moderate', 'severe') DEFAULT 'moderate',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    FOREIGN KEY (allergene_id) REFERENCES allergenes(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_allergene (utilisateur_id, allergene_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (allergen_id) REFERENCES allergens(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_allergen (user_id, allergen_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: preferences_ingredients
+-- Table: ingredient_preferences
 -- =============================================
-CREATE TABLE preferences_ingredients (
+CREATE TABLE ingredient_preferences (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    utilisateur_id INT NOT NULL,
+    user_id INT NOT NULL,
     ingredient_id INT NOT NULL,
-    type_preference ENUM('exclu', 'evite', 'prefere', 'favori') NOT NULL,
+    preference_type ENUM('excluded', 'avoided', 'preferred', 'favorite') NOT NULL,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_ingredient (utilisateur_id, ingredient_id),
-    INDEX idx_user_pref (utilisateur_id, type_preference)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY unique_user_ingredient (user_id, ingredient_id),
+    INDEX idx_user_pref (user_id, preference_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: recettes
+-- Table: recipes
 -- =============================================
-CREATE TABLE recettes (
+CREATE TABLE recipes (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    titre VARCHAR(200) NOT NULL,
+    title VARCHAR(200) NOT NULL,
     description TEXT,
     instructions TEXT NOT NULL,
-    temps_preparation INT, -- en minutes
-    temps_cuisson INT, -- en minutes
-    temps_total INT GENERATED ALWAYS AS (temps_preparation + temps_cuisson) STORED,
-    nb_portions INT DEFAULT 4,
-    difficulte ENUM('facile', 'moyen', 'difficile') DEFAULT 'moyen',
-    cout_estime DECIMAL(6,2),
+    prep_time INT, -- in minutes
+    cook_time INT, -- in minutes
+    total_time INT GENERATED ALWAYS AS (prep_time + cook_time) STORED,
+    servings INT DEFAULT 4,
+    difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'medium',
+    estimated_cost DECIMAL(6,2),
     image_url VARCHAR(500),
-    cree_par INT NOT NULL,
-    publie BOOLEAN DEFAULT TRUE,
-    note_moyenne DECIMAL(3,2) DEFAULT 0,
-    nb_evaluations INT DEFAULT 0,
-    nb_realisations INT DEFAULT 0,
+    created_by INT NOT NULL,
+    published BOOLEAN DEFAULT TRUE,
+    average_rating DECIMAL(3,2) DEFAULT 0,
+    rating_count INT DEFAULT 0,
+    completion_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (cree_par) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    INDEX idx_titre (titre),
-    INDEX idx_cree_par (cree_par),
-    INDEX idx_publie (publie),
-    INDEX idx_note (note_moyenne),
-    INDEX idx_difficulte (difficulte),
-    FULLTEXT idx_fulltext (titre, description)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_title (title),
+    INDEX idx_created_by (created_by),
+    INDEX idx_published (published),
+    INDEX idx_rating (average_rating),
+    INDEX idx_difficulty (difficulty),
+    FULLTEXT idx_fulltext (title, description)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: recettes_favoris
+-- Table: favorite_recipes
 -- =============================================
-CREATE TABLE recettes_favoris (
-    utilisateur_id INT NOT NULL,
-    recette_id INT NOT NULL,
+CREATE TABLE favorite_recipes (
+    user_id INT NOT NULL,
+    recipe_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (utilisateur_id, recette_id),
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    PRIMARY KEY (user_id, recipe_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: ingredients_recette
+-- Table: recipe_ingredients
 -- =============================================
-CREATE TABLE ingredients_recette (
+CREATE TABLE recipe_ingredients (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    recette_id INT NOT NULL,
+    recipe_id INT NOT NULL,
     ingredient_id INT NOT NULL,
-    quantite DECIMAL(10,2) NOT NULL,
-    unite_mesure VARCHAR(20),
-    optionnel BOOLEAN DEFAULT FALSE,
+    quantity DECIMAL(10,2) NOT NULL,
+    unit_of_measure VARCHAR(20),
+    optional BOOLEAN DEFAULT FALSE,
     notes VARCHAR(255),
-    ordre INT DEFAULT 0,
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE CASCADE,
+    order_position INT DEFAULT 0,
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-    INDEX idx_recette (recette_id),
+    INDEX idx_recipe (recipe_id),
     INDEX idx_ingredient (ingredient_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: etapes_recette
+-- Table: recipe_steps
 -- =============================================
-CREATE TABLE etapes_recette (
+CREATE TABLE recipe_steps (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    recette_id INT NOT NULL,
-    numero_etape INT NOT NULL,
+    recipe_id INT NOT NULL,
+    step_number INT NOT NULL,
     description TEXT NOT NULL,
-    duree_minutes INT,
+    duration_minutes INT,
     image_url VARCHAR(500),
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_recette_etape (recette_id, numero_etape),
-    INDEX idx_recette_etape (recette_id, numero_etape)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_recipe_step (recipe_id, step_number),
+    INDEX idx_recipe_step (recipe_id, step_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: stocks_utilisateur
+-- Table: user_stock
 -- =============================================
-CREATE TABLE stocks_utilisateur (
+CREATE TABLE user_stock (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    utilisateur_id INT NOT NULL,
+    user_id INT NOT NULL,
     ingredient_id INT NOT NULL,
-    quantite DECIMAL(10,2) NOT NULL,
-    unite_mesure VARCHAR(20),
-    date_peremption DATE,
-    emplacement VARCHAR(50) DEFAULT 'cuisine',
+    quantity DECIMAL(10,2) NOT NULL,
+    unit_of_measure VARCHAR(20),
+    expiration_date DATE,
+    location VARCHAR(50) DEFAULT 'kitchen',
     notes VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_ingredient_stock (utilisateur_id, ingredient_id, date_peremption),
-    INDEX idx_user_stock (utilisateur_id),
-    INDEX idx_peremption (date_peremption),
+    UNIQUE KEY unique_user_ingredient_stock (user_id, ingredient_id, expiration_date),
+    INDEX idx_user_stock (user_id),
+    INDEX idx_expiration (expiration_date),
     INDEX idx_ingredient_stock (ingredient_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: historique_recettes
+-- Table: recipe_history
 -- =============================================
-CREATE TABLE historique_recettes (
+CREATE TABLE recipe_history (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    utilisateur_id INT NOT NULL,
-    recette_id INT NOT NULL,
-    date_realisation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    note INT CHECK (note >= 1 AND note <= 5),
-    temps_reel_minutes INT,
-    nb_portions_realisees INT,
-    stock_mis_a_jour BOOLEAN DEFAULT FALSE,
+    user_id INT NOT NULL,
+    recipe_id INT NOT NULL,
+    completion_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    actual_time_minutes INT,
+    servings_made INT,
+    stock_updated BOOLEAN DEFAULT FALSE,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE CASCADE,
-    INDEX idx_user_history (utilisateur_id, date_realisation DESC),
-    INDEX idx_recette_history (recette_id),
-    INDEX idx_date_realisation (date_realisation)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+    INDEX idx_user_history (user_id, completion_date DESC),
+    INDEX idx_recipe_history (recipe_id),
+    INDEX idx_completion_date (completion_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: commentaires
+-- Table: comments
 -- =============================================
-CREATE TABLE commentaires (
+CREATE TABLE comments (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    recette_id INT NOT NULL,
-    utilisateur_id INT NOT NULL,
-    historique_id INT,
-    commentaire TEXT NOT NULL,
-    note INT CHECK (note >= 1 AND note <= 5),
+    recipe_id INT NOT NULL,
+    user_id INT NOT NULL,
+    history_id INT,
+    comment TEXT NOT NULL,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
     visible BOOLEAN DEFAULT TRUE,
-    modere BOOLEAN DEFAULT FALSE,
+    moderated BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE CASCADE,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    FOREIGN KEY (historique_id) REFERENCES historique_recettes(id) ON DELETE SET NULL,
-    INDEX idx_recette_comments (recette_id, visible),
-    INDEX idx_user_comments (utilisateur_id),
-    INDEX idx_moderation (modere, visible)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (history_id) REFERENCES recipe_history(id) ON DELETE SET NULL,
+    INDEX idx_recipe_comments (recipe_id, visible),
+    INDEX idx_user_comments (user_id),
+    INDEX idx_moderation (moderated, visible)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: liste_courses
+-- Table: shopping_lists
 -- =============================================
-CREATE TABLE liste_courses (
+CREATE TABLE shopping_lists (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    utilisateur_id INT NOT NULL,
-    nom VARCHAR(100) NOT NULL,
-    date_creation DATE NOT NULL DEFAULT (CURRENT_DATE),
-    date_courses_prevue DATE,
-    statut ENUM('en_cours', 'complete', 'archivee') DEFAULT 'en_cours',
+    user_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    creation_date DATE NOT NULL DEFAULT (CURRENT_DATE),
+    planned_shopping_date DATE,
+    status ENUM('in_progress', 'completed', 'archived') DEFAULT 'in_progress',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
-    INDEX idx_user_liste (utilisateur_id, statut),
-    INDEX idx_date_courses (date_courses_prevue)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_list (user_id, status),
+    INDEX idx_shopping_date (planned_shopping_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Table: liste_courses_ingredients
+-- Table: shopping_list_ingredients
 -- =============================================
-CREATE TABLE liste_courses_ingredients (
+CREATE TABLE shopping_list_ingredients (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    liste_id INT NOT NULL,
+    list_id INT NOT NULL,
     ingredient_id INT NOT NULL,
-    quantite DECIMAL(10,2) NOT NULL,
-    unite_mesure VARCHAR(20),
-    recette_id INT,
-    achete BOOLEAN DEFAULT FALSE,
-    prix_reel DECIMAL(6,2),
+    quantity DECIMAL(10,2) NOT NULL,
+    unit_of_measure VARCHAR(20),
+    recipe_id INT,
+    purchased BOOLEAN DEFAULT FALSE,
+    actual_price DECIMAL(6,2),
     notes VARCHAR(255),
-    FOREIGN KEY (liste_id) REFERENCES liste_courses(id) ON DELETE CASCADE,
+    FOREIGN KEY (list_id) REFERENCES shopping_lists(id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id),
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE SET NULL,
-    INDEX idx_liste (liste_id),
-    INDEX idx_achete (achete)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE SET NULL,
+    INDEX idx_list (list_id),
+    INDEX idx_purchased (purchased)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

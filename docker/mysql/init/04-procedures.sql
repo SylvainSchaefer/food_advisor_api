@@ -1,49 +1,106 @@
 DELIMITER //
 
+
+
+-- USERS
 -- =============================================
--- Procédure: Authentification utilisateur
+-- Procedure: Find user by email
 -- =============================================
-CREATE PROCEDURE sp_authentifier_utilisateur(
-    IN p_email VARCHAR(255),
-    IN p_mot_de_passe VARCHAR(255)
+CREATE PROCEDURE sp_get_user_by_email(
+    IN p_email VARCHAR(255)
 )
 BEGIN
     SELECT 
         id,
         email,
-        nom,
-        prenom,
+        password_hash,
+        last_name,
+        first_name,
+        date_of_birth,
+        gender,
+        city,
+        postal_code,
+        country,
         role,
-        actif
-    FROM utilisateurs
+        dietary_regimen_id,
+        active,
+        created_at,
+        updated_at
+    FROM users
+    WHERE email = p_email;
+END//
+
+
+-- =============================================
+-- Procedure: Find user by id
+-- =============================================
+CREATE PROCEDURE sp_get_user_by_id(
+    IN p_id INT
+)
+BEGIN
+    SELECT *
+    FROM users
+    WHERE id = p_id;
+END//
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- =============================================
+-- Procedure: User authentication
+-- =============================================
+CREATE PROCEDURE sp_authenticate_user(
+    IN p_email VARCHAR(255),
+    IN p_password VARCHAR(255)
+)
+BEGIN
+    SELECT 
+        id,
+        email,
+        last_name,
+        first_name,
+        role,
+        active
+    FROM users
     WHERE email = p_email 
-        AND mot_de_passe = p_mot_de_passe
-        AND actif = TRUE;
+        AND password_hash = p_password
+        AND active = TRUE;
 END//
 
 -- =============================================
--- Procédure: Créer un nouvel utilisateur
+-- Procedure: Create new user
 -- =============================================
-CREATE PROCEDURE sp_creer_utilisateur(
+CREATE PROCEDURE sp_create_user(
     IN p_email VARCHAR(255),
-    IN p_mot_de_passe VARCHAR(255),
-    IN p_nom VARCHAR(100),
-    IN p_prenom VARCHAR(100),
-    IN p_date_naissance DATE,
-    IN p_ville VARCHAR(100),
+    IN p_password VARCHAR(255),
+    IN p_last_name VARCHAR(100),
+    IN p_first_name VARCHAR(100),
+    IN p_date_of_birth DATE,
+    IN p_city VARCHAR(100),
     OUT p_user_id INT
 )
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Erreur lors de la création de l utilisateur';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error creating user';
     END;
     
     START TRANSACTION;
     
-    INSERT INTO utilisateurs (email, mot_de_passe, nom, prenom, date_naissance, ville)
-    VALUES (p_email, p_mot_de_passe, p_nom, p_prenom, p_date_naissance, p_ville);
+    INSERT INTO users (email, password_hash, last_name, first_name, date_of_birth, city)
+    VALUES (p_email, p_password, p_last_name, p_first_name, p_date_of_birth, p_city);
     
     SET p_user_id = LAST_INSERT_ID();
     
@@ -51,298 +108,298 @@ BEGIN
 END//
 
 -- =============================================
--- Procédure: Recommander des recettes
+-- Procedure: Recommend recipes
 -- =============================================
-CREATE PROCEDURE sp_recommander_recettes(
-    IN p_utilisateur_id INT,
-    IN p_uniquement_stock BOOLEAN,
-    IN p_limite INT,
-    IN p_ordre_tri VARCHAR(20) -- 'note', 'cout', 'temps', 'recent'
+CREATE PROCEDURE sp_recommend_recipes(
+    IN p_user_id INT,
+    IN p_stock_only BOOLEAN,
+    IN p_limit INT,
+    IN p_sort_order VARCHAR(20) -- 'rating', 'cost', 'time', 'recent'
 )
 BEGIN
-    -- Table temporaire pour stocker les scores
-    CREATE TEMPORARY TABLE IF NOT EXISTS temp_recettes_scores (
-        recette_id INT,
+    -- Temporary table to store scores
+    CREATE TEMPORARY TABLE IF NOT EXISTS temp_recipe_scores (
+        recipe_id INT,
         score DECIMAL(10,2),
         compatible BOOLEAN DEFAULT TRUE,
-        ingredients_disponibles INT DEFAULT 0,
-        ingredients_total INT DEFAULT 0,
-        derniere_realisation DATE
+        available_ingredients INT DEFAULT 0,
+        total_ingredients INT DEFAULT 0,
+        last_completion DATE
     );
     
-    -- Réinitialiser la table temporaire
-    TRUNCATE TABLE temp_recettes_scores;
+    -- Reset temporary table
+    TRUNCATE TABLE temp_recipe_scores;
     
-    -- Calculer les scores pour chaque recette
-    INSERT INTO temp_recettes_scores (recette_id, ingredients_total)
+    -- Calculate scores for each recipe
+    INSERT INTO temp_recipe_scores (recipe_id, total_ingredients)
     SELECT 
         r.id,
-        COUNT(DISTINCT ir.ingredient_id)
-    FROM recettes r
-    INNER JOIN ingredients_recette ir ON r.id = ir.recette_id
-    WHERE r.publie = TRUE
+        COUNT(DISTINCT ri.ingredient_id)
+    FROM recipes r
+    INNER JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+    WHERE r.published = TRUE
     GROUP BY r.id;
     
-    -- Marquer les recettes incompatibles (allergies, exclusions)
-    UPDATE temp_recettes_scores trs
+    -- Mark incompatible recipes (allergies, exclusions)
+    UPDATE temp_recipe_scores trs
     SET compatible = FALSE
     WHERE EXISTS (
         SELECT 1 
-        FROM ingredients_recette ir
-        INNER JOIN preferences_ingredients pi ON ir.ingredient_id = pi.ingredient_id
-        WHERE ir.recette_id = trs.recette_id 
-            AND pi.utilisateur_id = p_utilisateur_id
-            AND pi.type_preference IN ('exclu', 'evite')
+        FROM recipe_ingredients ri
+        INNER JOIN ingredient_preferences ip ON ri.ingredient_id = ip.ingredient_id
+        WHERE ri.recipe_id = trs.recipe_id 
+            AND ip.user_id = p_user_id
+            AND ip.preference_type IN ('excluded', 'avoided')
     );
     
-    -- Marquer les recettes avec allergènes
-    UPDATE temp_recettes_scores trs
+    -- Mark recipes with allergens
+    UPDATE temp_recipe_scores trs
     SET compatible = FALSE
     WHERE EXISTS (
         SELECT 1 
-        FROM ingredients_recette ir
-        INNER JOIN ingredients_allergenes ia ON ir.ingredient_id = ia.ingredient_id
-        INNER JOIN preferences_alimentaires pa ON ia.allergene_id = pa.allergene_id
-        WHERE ir.recette_id = trs.recette_id 
-            AND pa.utilisateur_id = p_utilisateur_id
+        FROM recipe_ingredients ri
+        INNER JOIN ingredient_allergens ia ON ri.ingredient_id = ia.ingredient_id
+        INNER JOIN dietary_preferences dp ON ia.allergen_id = dp.allergen_id
+        WHERE ri.recipe_id = trs.recipe_id 
+            AND dp.user_id = p_user_id
     );
     
-    -- Si uniquement avec stock, calculer les ingrédients disponibles
-    IF p_uniquement_stock THEN
-        UPDATE temp_recettes_scores trs
-        SET ingredients_disponibles = (
-            SELECT COUNT(DISTINCT ir.ingredient_id)
-            FROM ingredients_recette ir
-            INNER JOIN stocks_utilisateur su ON ir.ingredient_id = su.ingredient_id
-            WHERE ir.recette_id = trs.recette_id 
-                AND su.utilisateur_id = p_utilisateur_id
-                AND su.quantite >= ir.quantite
-                AND (su.date_peremption IS NULL OR su.date_peremption > CURDATE())
+    -- If stock only, calculate available ingredients
+    IF p_stock_only THEN
+        UPDATE temp_recipe_scores trs
+        SET available_ingredients = (
+            SELECT COUNT(DISTINCT ri.ingredient_id)
+            FROM recipe_ingredients ri
+            INNER JOIN user_stock us ON ri.ingredient_id = us.ingredient_id
+            WHERE ri.recipe_id = trs.recipe_id 
+                AND us.user_id = p_user_id
+                AND us.quantity >= ri.quantity
+                AND (us.expiration_date IS NULL OR us.expiration_date > CURDATE())
         );
         
-        -- Filtrer les recettes non réalisables
-        UPDATE temp_recettes_scores
+        -- Filter non-achievable recipes
+        UPDATE temp_recipe_scores
         SET compatible = FALSE
-        WHERE ingredients_disponibles < ingredients_total;
+        WHERE available_ingredients < total_ingredients;
     END IF;
     
-    -- Récupérer la date de dernière réalisation
-    UPDATE temp_recettes_scores trs
-    SET derniere_realisation = (
-        SELECT MAX(hr.date_realisation)
-        FROM historique_recettes hr
-        WHERE hr.recette_id = trs.recette_id 
-            AND hr.utilisateur_id = p_utilisateur_id
+    -- Get last completion date
+    UPDATE temp_recipe_scores trs
+    SET last_completion = (
+        SELECT MAX(rh.completion_date)
+        FROM recipe_history rh
+        WHERE rh.recipe_id = trs.recipe_id 
+            AND rh.user_id = p_user_id
     );
     
-    -- Calculer le score final
-    UPDATE temp_recettes_scores trs
-    INNER JOIN recettes r ON trs.recette_id = r.id
+    -- Calculate final score
+    UPDATE temp_recipe_scores trs
+    INNER JOIN recipes r ON trs.recipe_id = r.id
     SET trs.score = 
-        (r.note_moyenne * 20) +  -- Note sur 100
+        (r.average_rating * 20) +  -- Rating out of 100
         (CASE 
-            WHEN trs.derniere_realisation IS NULL THEN 50
-            WHEN DATEDIFF(CURDATE(), trs.derniere_realisation) > 30 THEN 40
-            WHEN DATEDIFF(CURDATE(), trs.derniere_realisation) > 14 THEN 20
+            WHEN trs.last_completion IS NULL THEN 50
+            WHEN DATEDIFF(CURDATE(), trs.last_completion) > 30 THEN 40
+            WHEN DATEDIFF(CURDATE(), trs.last_completion) > 14 THEN 20
             ELSE 0
-        END) + -- Bonus si pas récemment réalisé
+        END) + -- Bonus if not recently completed
         (CASE 
-            WHEN p_uniquement_stock THEN (trs.ingredients_disponibles / trs.ingredients_total * 30)
+            WHEN p_stock_only THEN (trs.available_ingredients / trs.total_ingredients * 30)
             ELSE 0
-        END); -- Bonus si ingrédients disponibles
+        END); -- Bonus if ingredients available
     
-    -- Sélectionner les recettes recommandées
+    -- Select recommended recipes
     SELECT 
         r.*,
         trs.score,
-        trs.ingredients_disponibles,
-        trs.ingredients_total,
-        trs.derniere_realisation,
+        trs.available_ingredients,
+        trs.total_ingredients,
+        trs.last_completion,
         CASE 
-            WHEN rf.recette_id IS NOT NULL THEN TRUE 
+            WHEN fr.recipe_id IS NOT NULL THEN TRUE 
             ELSE FALSE 
-        END AS est_favori
-    FROM temp_recettes_scores trs
-    INNER JOIN recettes r ON trs.recette_id = r.id
-    LEFT JOIN recettes_favoris rf ON r.id = rf.recette_id AND rf.utilisateur_id = p_utilisateur_id
+        END AS is_favorite
+    FROM temp_recipe_scores trs
+    INNER JOIN recipes r ON trs.recipe_id = r.id
+    LEFT JOIN favorite_recipes fr ON r.id = fr.recipe_id AND fr.user_id = p_user_id
     WHERE trs.compatible = TRUE
     ORDER BY 
         CASE 
-            WHEN p_ordre_tri = 'note' THEN r.note_moyenne
-            WHEN p_ordre_tri = 'cout' THEN -r.cout_estime
-            WHEN p_ordre_tri = 'temps' THEN -r.temps_total
+            WHEN p_sort_order = 'rating' THEN r.average_rating
+            WHEN p_sort_order = 'cost' THEN -r.estimated_cost
+            WHEN p_sort_order = 'time' THEN -r.total_time
             ELSE trs.score
         END DESC
-    LIMIT p_limite;
+    LIMIT p_limit;
     
-    DROP TEMPORARY TABLE IF EXISTS temp_recettes_scores;
+    DROP TEMPORARY TABLE IF EXISTS temp_recipe_scores;
 END//
 
 -- =============================================
--- Procédure: Réaliser une recette
+-- Procedure: Complete a recipe
 -- =============================================
-CREATE PROCEDURE sp_realiser_recette(
-    IN p_utilisateur_id INT,
-    IN p_recette_id INT,
-    IN p_note INT,
-    IN p_mise_a_jour_stock BOOLEAN,
-    IN p_nb_portions INT
+CREATE PROCEDURE sp_complete_recipe(
+    IN p_user_id INT,
+    IN p_recipe_id INT,
+    IN p_rating INT,
+    IN p_update_stock BOOLEAN,
+    IN p_servings INT
 )
 BEGIN
-    DECLARE v_historique_id INT;
-    DECLARE v_facteur_portion DECIMAL(5,2);
+    DECLARE v_history_id INT;
+    DECLARE v_serving_factor DECIMAL(5,2);
     
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Erreur lors de la réalisation de la recette';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error completing recipe';
     END;
     
     START TRANSACTION;
     
-    -- Calculer le facteur de portion
-    SELECT p_nb_portions / nb_portions INTO v_facteur_portion
-    FROM recettes 
-    WHERE id = p_recette_id;
+    -- Calculate serving factor
+    SELECT p_servings / servings INTO v_serving_factor
+    FROM recipes 
+    WHERE id = p_recipe_id;
     
-    -- Ajouter à l'historique
-    INSERT INTO historique_recettes (
-        utilisateur_id, 
-        recette_id, 
-        note, 
-        nb_portions_realisees, 
-        stock_mis_a_jour
+    -- Add to history
+    INSERT INTO recipe_history (
+        user_id, 
+        recipe_id, 
+        rating, 
+        servings_made, 
+        stock_updated
     )
     VALUES (
-        p_utilisateur_id, 
-        p_recette_id, 
-        p_note, 
-        p_nb_portions, 
-        p_mise_a_jour_stock
+        p_user_id, 
+        p_recipe_id, 
+        p_rating, 
+        p_servings, 
+        p_update_stock
     );
     
-    SET v_historique_id = LAST_INSERT_ID();
+    SET v_history_id = LAST_INSERT_ID();
     
-    -- Mettre à jour les stocks si demandé
-    IF p_mise_a_jour_stock THEN
-        UPDATE stocks_utilisateur su
-        INNER JOIN ingredients_recette ir ON su.ingredient_id = ir.ingredient_id
-        SET su.quantite = GREATEST(0, su.quantite - (ir.quantite * v_facteur_portion))
-        WHERE su.utilisateur_id = p_utilisateur_id 
-            AND ir.recette_id = p_recette_id;
+    -- Update stock if requested
+    IF p_update_stock THEN
+        UPDATE user_stock us
+        INNER JOIN recipe_ingredients ri ON us.ingredient_id = ri.ingredient_id
+        SET us.quantity = GREATEST(0, us.quantity - (ri.quantity * v_serving_factor))
+        WHERE us.user_id = p_user_id 
+            AND ri.recipe_id = p_recipe_id;
     END IF;
     
-    -- Mettre à jour les statistiques de la recette
-    UPDATE recettes
+    -- Update recipe statistics
+    UPDATE recipes
     SET 
-        nb_realisations = nb_realisations + 1,
-        note_moyenne = (
-            SELECT AVG(note)
-            FROM historique_recettes
-            WHERE recette_id = p_recette_id AND note IS NOT NULL
+        completion_count = completion_count + 1,
+        average_rating = (
+            SELECT AVG(rating)
+            FROM recipe_history
+            WHERE recipe_id = p_recipe_id AND rating IS NOT NULL
         ),
-        nb_evaluations = (
+        rating_count = (
             SELECT COUNT(*)
-            FROM historique_recettes
-            WHERE recette_id = p_recette_id AND note IS NOT NULL
+            FROM recipe_history
+            WHERE recipe_id = p_recipe_id AND rating IS NOT NULL
         )
-    WHERE id = p_recette_id;
+    WHERE id = p_recipe_id;
     
     COMMIT;
     
-    SELECT v_historique_id AS historique_id;
+    SELECT v_history_id AS history_id;
 END//
 
 -- =============================================
--- Procédure: Générer liste de courses
+-- Procedure: Generate shopping list
 -- =============================================
-CREATE PROCEDURE sp_generer_liste_courses(
-    IN p_utilisateur_id INT,
-    IN p_recettes_ids TEXT, -- IDs séparés par des virgules
-    IN p_nb_portions_par_recette TEXT, -- Nombres séparés par des virgules
-    IN p_nom_liste VARCHAR(100)
+CREATE PROCEDURE sp_generate_shopping_list(
+    IN p_user_id INT,
+    IN p_recipe_ids TEXT, -- Comma-separated IDs
+    IN p_servings_per_recipe TEXT, -- Comma-separated numbers
+    IN p_list_name VARCHAR(100)
 )
 BEGIN
-    DECLARE v_liste_id INT;
-    DECLARE v_recette_id INT;
-    DECLARE v_nb_portions INT;
-    DECLARE v_facteur DECIMAL(5,2);
+    DECLARE v_list_id INT;
+    DECLARE v_recipe_id INT;
+    DECLARE v_servings INT;
+    DECLARE v_factor DECIMAL(5,2);
     DECLARE v_position INT DEFAULT 1;
-    DECLARE v_recettes_count INT;
+    DECLARE v_recipe_count INT;
     
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Erreur lors de la génération de la liste de courses';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error generating shopping list';
     END;
     
     START TRANSACTION;
     
-    -- Créer la liste de courses
-    INSERT INTO liste_courses (utilisateur_id, nom)
-    VALUES (p_utilisateur_id, p_nom_liste);
+    -- Create shopping list
+    INSERT INTO shopping_lists (user_id, name)
+    VALUES (p_user_id, p_list_name);
     
-    SET v_liste_id = LAST_INSERT_ID();
+    SET v_list_id = LAST_INSERT_ID();
     
-    -- Table temporaire pour les ingrédients nécessaires
+    -- Temporary table for needed ingredients
     CREATE TEMPORARY TABLE IF NOT EXISTS temp_ingredients_needed (
         ingredient_id INT,
-        quantite_totale DECIMAL(10,2),
-        unite_mesure VARCHAR(20),
-        recette_id INT
+        total_quantity DECIMAL(10,2),
+        unit_of_measure VARCHAR(20),
+        recipe_id INT
     );
     
-    -- Calculer le nombre de recettes
-    SET v_recettes_count = (LENGTH(p_recettes_ids) - LENGTH(REPLACE(p_recettes_ids, ',', '')) + 1);
+    -- Calculate number of recipes
+    SET v_recipe_count = (LENGTH(p_recipe_ids) - LENGTH(REPLACE(p_recipe_ids, ',', '')) + 1);
     
-    -- Parcourir chaque recette
-    WHILE v_position <= v_recettes_count DO
-        -- Extraire l'ID de recette et le nombre de portions
-        SET v_recette_id = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p_recettes_ids, ',', v_position), ',', -1) AS UNSIGNED);
-        SET v_nb_portions = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p_nb_portions_par_recette, ',', v_position), ',', -1) AS UNSIGNED);
+    -- Loop through each recipe
+    WHILE v_position <= v_recipe_count DO
+        -- Extract recipe ID and servings
+        SET v_recipe_id = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p_recipe_ids, ',', v_position), ',', -1) AS UNSIGNED);
+        SET v_servings = CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p_servings_per_recipe, ',', v_position), ',', -1) AS UNSIGNED);
         
-        -- Calculer le facteur de portion
-        SELECT v_nb_portions / nb_portions INTO v_facteur
-        FROM recettes 
-        WHERE id = v_recette_id;
+        -- Calculate serving factor
+        SELECT v_servings / servings INTO v_factor
+        FROM recipes 
+        WHERE id = v_recipe_id;
         
-        -- Ajouter les ingrédients nécessaires
-        INSERT INTO temp_ingredients_needed (ingredient_id, quantite_totale, unite_mesure, recette_id)
+        -- Add needed ingredients
+        INSERT INTO temp_ingredients_needed (ingredient_id, total_quantity, unit_of_measure, recipe_id)
         SELECT 
-            ir.ingredient_id,
-            ir.quantite * v_facteur,
-            ir.unite_mesure,
-            v_recette_id
-        FROM ingredients_recette ir
-        WHERE ir.recette_id = v_recette_id AND ir.optionnel = FALSE
+            ri.ingredient_id,
+            ri.quantity * v_factor,
+            ri.unit_of_measure,
+            v_recipe_id
+        FROM recipe_ingredients ri
+        WHERE ri.recipe_id = v_recipe_id AND ri.optional = FALSE
         ON DUPLICATE KEY UPDATE 
-            quantite_totale = quantite_totale + (ir.quantite * v_facteur);
+            total_quantity = total_quantity + (ri.quantity * v_factor);
         
         SET v_position = v_position + 1;
     END WHILE;
     
-    -- Soustraire les stocks disponibles et ajouter à la liste
-    INSERT INTO liste_courses_ingredients (liste_id, ingredient_id, quantite, unite_mesure, recette_id)
+    -- Subtract available stock and add to list
+    INSERT INTO shopping_list_ingredients (list_id, ingredient_id, quantity, unit_of_measure, recipe_id)
     SELECT 
-        v_liste_id,
+        v_list_id,
         tin.ingredient_id,
-        GREATEST(0, tin.quantite_totale - COALESCE(
-            (SELECT SUM(su.quantite)
-             FROM stocks_utilisateur su
-             WHERE su.utilisateur_id = p_utilisateur_id 
-                AND su.ingredient_id = tin.ingredient_id
-                AND (su.date_peremption IS NULL OR su.date_peremption > CURDATE())
+        GREATEST(0, tin.total_quantity - COALESCE(
+            (SELECT SUM(us.quantity)
+             FROM user_stock us
+             WHERE us.user_id = p_user_id 
+                AND us.ingredient_id = tin.ingredient_id
+                AND (us.expiration_date IS NULL OR us.expiration_date > CURDATE())
             ), 0
         )),
-        tin.unite_mesure,
-        tin.recette_id
+        tin.unit_of_measure,
+        tin.recipe_id
     FROM temp_ingredients_needed tin
-    WHERE tin.quantite_totale > COALESCE(
-        (SELECT SUM(su.quantite)
-         FROM stocks_utilisateur su
-         WHERE su.utilisateur_id = p_utilisateur_id 
-            AND su.ingredient_id = tin.ingredient_id
-            AND (su.date_peremption IS NULL OR su.date_peremption > CURDATE())
+    WHERE tin.total_quantity > COALESCE(
+        (SELECT SUM(us.quantity)
+         FROM user_stock us
+         WHERE us.user_id = p_user_id 
+            AND us.ingredient_id = tin.ingredient_id
+            AND (us.expiration_date IS NULL OR us.expiration_date > CURDATE())
         ), 0
     );
     
@@ -350,190 +407,190 @@ BEGIN
     
     COMMIT;
     
-    SELECT v_liste_id AS liste_id;
+    SELECT v_list_id AS list_id;
 END//
 
 -- =============================================
--- Procédure: Vérifier stocks périmés
+-- Procedure: Check expired stock
 -- =============================================
-CREATE PROCEDURE sp_verifier_stocks_perimes(
-    IN p_utilisateur_id INT,
-    IN p_jours_avant_peremption INT
+CREATE PROCEDURE sp_check_expired_stock(
+    IN p_user_id INT,
+    IN p_days_before_expiration INT
 )
 BEGIN
     SELECT 
-        su.*,
-        i.nom AS nom_ingredient,
-        DATEDIFF(su.date_peremption, CURDATE()) AS jours_restants
-    FROM stocks_utilisateur su
-    INNER JOIN ingredients i ON su.ingredient_id = i.id
-    WHERE su.utilisateur_id = p_utilisateur_id
-        AND su.date_peremption IS NOT NULL
-        AND su.date_peremption <= DATE_ADD(CURDATE(), INTERVAL p_jours_avant_peremption DAY)
-        AND su.quantite > 0
-    ORDER BY su.date_peremption ASC;
+        us.*,
+        i.name AS ingredient_name,
+        DATEDIFF(us.expiration_date, CURDATE()) AS days_remaining
+    FROM user_stock us
+    INNER JOIN ingredients i ON us.ingredient_id = i.id
+    WHERE us.user_id = p_user_id
+        AND us.expiration_date IS NOT NULL
+        AND us.expiration_date <= DATE_ADD(CURDATE(), INTERVAL p_days_before_expiration DAY)
+        AND us.quantity > 0
+    ORDER BY us.expiration_date ASC;
 END//
 
 -- =============================================
--- Fonction: Calculer le coût d'une recette
+-- Function: Calculate recipe cost
 -- =============================================
-CREATE FUNCTION fn_calculer_cout_recette(p_recette_id INT)
+CREATE FUNCTION fn_calculate_recipe_cost(p_recipe_id INT)
 RETURNS DECIMAL(10,2)
 DETERMINISTIC
 READS SQL DATA
 BEGIN
-    DECLARE v_cout_total DECIMAL(10,2);
+    DECLARE v_total_cost DECIMAL(10,2);
     
-    SELECT COALESCE(SUM(ir.quantite * i.prix_estime / 
+    SELECT COALESCE(SUM(ri.quantity * i.estimated_price / 
         CASE 
-            WHEN ir.unite_mesure = 'kg' AND i.unite_mesure = 'g' THEN 1000
-            WHEN ir.unite_mesure = 'l' AND i.unite_mesure = 'ml' THEN 1000
+            WHEN ri.unit_of_measure = 'kg' AND i.unit_of_measure = 'g' THEN 1000
+            WHEN ri.unit_of_measure = 'l' AND i.unit_of_measure = 'ml' THEN 1000
             ELSE 1
         END
-    ), 0) INTO v_cout_total
-    FROM ingredients_recette ir
-    INNER JOIN ingredients i ON ir.ingredient_id = i.id
-    WHERE ir.recette_id = p_recette_id
-        AND i.prix_estime IS NOT NULL
-        AND ir.optionnel = FALSE;
+    ), 0) INTO v_total_cost
+    FROM recipe_ingredients ri
+    INNER JOIN ingredients i ON ri.ingredient_id = i.id
+    WHERE ri.recipe_id = p_recipe_id
+        AND i.estimated_price IS NOT NULL
+        AND ri.optional = FALSE;
     
-    RETURN v_cout_total;
+    RETURN v_total_cost;
 END//
 
 -- =============================================
--- Procédure: Rechercher recettes
+-- Procedure: Search recipes
 -- =============================================
-CREATE PROCEDURE sp_rechercher_recettes(
-    IN p_terme_recherche VARCHAR(255),
-    IN p_categorie_ingredient INT,
-    IN p_temps_max INT,
-    IN p_difficulte VARCHAR(20),
-    IN p_note_min DECIMAL(3,2),
-    IN p_limite INT,
+CREATE PROCEDURE sp_search_recipes(
+    IN p_search_term VARCHAR(255),
+    IN p_ingredient_category INT,
+    IN p_max_time INT,
+    IN p_difficulty VARCHAR(20),
+    IN p_min_rating DECIMAL(3,2),
+    IN p_limit INT,
     IN p_offset INT
 )
 BEGIN
     SELECT DISTINCT
         r.*,
-        COUNT(DISTINCT c.id) AS nb_commentaires,
-        MAX(hr.date_realisation) AS derniere_realisation
-    FROM recettes r
-    LEFT JOIN ingredients_recette ir ON r.id = ir.recette_id
-    LEFT JOIN ingredients i ON ir.ingredient_id = i.id
-    LEFT JOIN commentaires c ON r.id = c.recette_id AND c.visible = TRUE
-    LEFT JOIN historique_recettes hr ON r.id = hr.recette_id
-    WHERE r.publie = TRUE
-        AND (p_terme_recherche IS NULL OR 
-            (MATCH(r.titre, r.description) AGAINST(p_terme_recherche IN NATURAL LANGUAGE MODE)
-            OR r.titre LIKE CONCAT('%', p_terme_recherche, '%')))
-        AND (p_categorie_ingredient IS NULL OR i.categorie_id = p_categorie_ingredient)
-        AND (p_temps_max IS NULL OR r.temps_total <= p_temps_max)
-        AND (p_difficulte IS NULL OR r.difficulte = p_difficulte)
-        AND (p_note_min IS NULL OR r.note_moyenne >= p_note_min)
+        COUNT(DISTINCT c.id) AS comment_count,
+        MAX(rh.completion_date) AS last_completion
+    FROM recipes r
+    LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+    LEFT JOIN ingredients i ON ri.ingredient_id = i.id
+    LEFT JOIN comments c ON r.id = c.recipe_id AND c.visible = TRUE
+    LEFT JOIN recipe_history rh ON r.id = rh.recipe_id
+    WHERE r.published = TRUE
+        AND (p_search_term IS NULL OR 
+            (MATCH(r.title, r.description) AGAINST(p_search_term IN NATURAL LANGUAGE MODE)
+            OR r.title LIKE CONCAT('%', p_search_term, '%')))
+        AND (p_ingredient_category IS NULL OR i.category_id = p_ingredient_category)
+        AND (p_max_time IS NULL OR r.total_time <= p_max_time)
+        AND (p_difficulty IS NULL OR r.difficulty = p_difficulty)
+        AND (p_min_rating IS NULL OR r.average_rating >= p_min_rating)
     GROUP BY r.id
-    ORDER BY r.note_moyenne DESC, r.nb_realisations DESC
-    LIMIT p_limite OFFSET p_offset;
+    ORDER BY r.average_rating DESC, r.completion_count DESC
+    LIMIT p_limit OFFSET p_offset;
 END//
 
 -- =============================================
--- Procédure: Statistiques utilisateur
+-- Procedure: User statistics
 -- =============================================
-CREATE PROCEDURE sp_statistiques_utilisateur(
-    IN p_utilisateur_id INT
+CREATE PROCEDURE sp_user_statistics(
+    IN p_user_id INT
 )
 BEGIN
-    -- Statistiques générales
+    -- General statistics
     SELECT 
-        COUNT(DISTINCT hr.recette_id) AS nb_recettes_realisees,
-        COUNT(*) AS nb_total_realisations,
-        AVG(hr.note) AS note_moyenne_donnee,
-        MAX(hr.date_realisation) AS derniere_realisation,
-        COUNT(DISTINCT DATE(hr.date_realisation)) AS nb_jours_cuisine
-    FROM historique_recettes hr
-    WHERE hr.utilisateur_id = p_utilisateur_id;
+        COUNT(DISTINCT rh.recipe_id) AS completed_recipes_count,
+        COUNT(*) AS total_completions_count,
+        AVG(rh.rating) AS average_rating_given,
+        MAX(rh.completion_date) AS last_completion,
+        COUNT(DISTINCT DATE(rh.completion_date)) AS cooking_days_count
+    FROM recipe_history rh
+    WHERE rh.user_id = p_user_id;
     
-    -- Top 5 recettes préférées
+    -- Top 5 favorite recipes
     SELECT 
         r.id,
-        r.titre,
-        COUNT(*) AS nb_realisations,
-        AVG(hr.note) AS note_moyenne
-    FROM historique_recettes hr
-    INNER JOIN recettes r ON hr.recette_id = r.id
-    WHERE hr.utilisateur_id = p_utilisateur_id
+        r.title,
+        COUNT(*) AS completion_count,
+        AVG(rh.rating) AS average_rating
+    FROM recipe_history rh
+    INNER JOIN recipes r ON rh.recipe_id = r.id
+    WHERE rh.user_id = p_user_id
     GROUP BY r.id
-    ORDER BY AVG(hr.note) DESC, COUNT(*) DESC
+    ORDER BY AVG(rh.rating) DESC, COUNT(*) DESC
     LIMIT 5;
     
-    -- Catégories d'ingrédients les plus utilisées
+    -- Most used ingredient categories
     SELECT 
-        ci.nom AS categorie,
-        COUNT(DISTINCT i.id) AS nb_ingredients_differents,
-        COUNT(*) AS nb_utilisations
-    FROM historique_recettes hr
-    INNER JOIN ingredients_recette ir ON hr.recette_id = ir.recette_id
-    INNER JOIN ingredients i ON ir.ingredient_id = i.id
-    INNER JOIN categories_ingredients ci ON i.categorie_id = ci.id
-    WHERE hr.utilisateur_id = p_utilisateur_id
-    GROUP BY ci.id
+        ic.name AS category,
+        COUNT(DISTINCT i.id) AS different_ingredients_count,
+        COUNT(*) AS usage_count
+    FROM recipe_history rh
+    INNER JOIN recipe_ingredients ri ON rh.recipe_id = ri.recipe_id
+    INNER JOIN ingredients i ON ri.ingredient_id = i.id
+    INNER JOIN ingredient_categories ic ON i.category_id = ic.id
+    WHERE rh.user_id = p_user_id
+    GROUP BY ic.id
     ORDER BY COUNT(*) DESC
     LIMIT 5;
 END//
 
 -- =============================================
--- Procédure: Nettoyer les stocks périmés
+-- Procedure: Clean expired stock
 -- =============================================
-CREATE PROCEDURE sp_nettoyer_stocks_perimes()
+CREATE PROCEDURE sp_clean_expired_stock()
 BEGIN
-    DELETE FROM stocks_utilisateur
-    WHERE date_peremption < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-        AND quantite = 0;
+    DELETE FROM user_stock
+    WHERE expiration_date < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        AND quantity = 0;
     
-    SELECT ROW_COUNT() AS nb_stocks_supprimes;
+    SELECT ROW_COUNT() AS deleted_stock_count;
 END//
 
 -- =============================================
--- Trigger: Mise à jour note moyenne après commentaire
+-- Trigger: Update average rating after comment
 -- =============================================
-CREATE TRIGGER trg_update_note_moyenne
-AFTER INSERT ON commentaires
+CREATE TRIGGER trg_update_average_rating
+AFTER INSERT ON comments
 FOR EACH ROW
 BEGIN
-    IF NEW.note IS NOT NULL THEN
-        UPDATE recettes
+    IF NEW.rating IS NOT NULL THEN
+        UPDATE recipes
         SET 
-            note_moyenne = (
-                SELECT AVG(note)
-                FROM commentaires
-                WHERE recette_id = NEW.recette_id 
-                    AND note IS NOT NULL 
+            average_rating = (
+                SELECT AVG(rating)
+                FROM comments
+                WHERE recipe_id = NEW.recipe_id 
+                    AND rating IS NOT NULL 
                     AND visible = TRUE
             ),
-            nb_evaluations = (
+            rating_count = (
                 SELECT COUNT(*)
-                FROM commentaires
-                WHERE recette_id = NEW.recette_id 
-                    AND note IS NOT NULL 
+                FROM comments
+                WHERE recipe_id = NEW.recipe_id 
+                    AND rating IS NOT NULL 
                     AND visible = TRUE
             )
-        WHERE id = NEW.recette_id;
+        WHERE id = NEW.recipe_id;
     END IF;
 END//
 
 -- =============================================
--- Trigger: Vérifier cohérence des stocks
+-- Trigger: Check stock coherence
 -- =============================================
 CREATE TRIGGER trg_check_stock_coherence
-BEFORE UPDATE ON stocks_utilisateur
+BEFORE UPDATE ON user_stock
 FOR EACH ROW
 BEGIN
-    IF NEW.quantite < 0 THEN
+    IF NEW.quantity < 0 THEN
         SIGNAL SQLSTATE '45000' 
-        SET MESSAGE_TEXT = 'La quantité en stock ne peut pas être négative';
+        SET MESSAGE_TEXT = 'Stock quantity cannot be negative';
     END IF;
     
-    IF NEW.date_peremption IS NOT NULL AND NEW.date_peremption < CURDATE() THEN
-        SET NEW.quantite = 0;
+    IF NEW.expiration_date IS NOT NULL AND NEW.expiration_date < CURDATE() THEN
+        SET NEW.quantity = 0;
     END IF;
 END//
 

@@ -11,7 +11,7 @@ services:
       MYSQL_USER: food_advisor_admin
       MYSQL_PASSWORD: admin
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d
@@ -53,7 +53,12 @@ services:
         condition: service_healthy
     networks:
       - food_advisor_network
-    command: ["cargo", "watch", "-x", "run", "-w", "src"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   mysql_data:

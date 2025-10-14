@@ -1,127 +1,118 @@
 USE food_advisor_db;
--- =============================================
--- Fichier: 02_indexes.sql
--- Description: Création des index supplémentaires pour optimiser les performances
--- Base de données: MySQL 8.0+
--- =============================================
+
+-- Index for recipe search by user and status
+CREATE INDEX idx_recipes_user_published 
+ON recipes(created_by, published, created_at DESC);
+
+-- Index for recipe recommendations
+CREATE INDEX idx_recipes_recommendation 
+ON recipes(published, average_rating DESC, rating_count DESC);
+
+-- Index for recipe search by difficulty and time
+CREATE INDEX idx_recipes_difficulty_time
+ON recipes(difficulty, total_time, published);
+
+-- Index for managing stock close to expiration
+CREATE INDEX idx_stock_expiration_user 
+ON user_stock(user_id, expiration_date, quantity);
+
+-- Index for recent recipe history
+CREATE INDEX idx_history_recent 
+ON recipe_history(user_id, completion_date DESC, rating);
+
+-- Index for recipes achievable with available stock
+CREATE INDEX idx_recipe_ingredients_quantity 
+ON recipe_ingredients(ingredient_id, quantity, optional);
+
+-- Index for user preferences
+CREATE INDEX idx_preferences_active 
+ON ingredient_preferences(user_id, preference_type);
+
+-- Index for recent comments
+CREATE INDEX idx_comments_recent 
+ON comments(recipe_id, created_at DESC);
+
+-- Index for allergen search
+CREATE INDEX idx_ingredient_allergens_search 
+ON ingredient_allergens(allergen_id, ingredient_id);
+
+-- Index for shopping lists
+CREATE INDEX idx_shopping_list_active 
+ON shopping_lists(user_id, status, planned_shopping_date);
+
+-- Index for user statistics
+CREATE INDEX idx_history_stats 
+ON recipe_history(user_id, rating, completion_date);
+
+-- Index for favorite recipes search
+CREATE INDEX idx_favorites_user_date 
+ON favorite_recipes(user_id, created_at DESC);
+
+-- Index for cost calculation optimization
+CREATE INDEX idx_ingredients_price 
+ON ingredients(approved, estimated_price);
+
+-- Index for search by ingredient category
+CREATE INDEX idx_ingredients_category_name 
+ON ingredients(category_id, name, approved);
 
 -- =============================================
--- Index composites pour optimiser les requêtes fréquentes
+-- Additional fulltext indexes
 -- =============================================
 
--- Index pour la recherche de recettes par utilisateur et statut
-CREATE INDEX idx_recettes_user_publie 
-ON recettes(cree_par, publie, created_at DESC);
-
--- Index pour les recommandations de recettes
-CREATE INDEX idx_recettes_recommandation 
-ON recettes(publie, note_moyenne DESC, nb_evaluations DESC);
-
--- Index pour la recherche de recettes par difficulté et temps
-CREATE INDEX idx_recettes_difficulte_temps
-ON recettes(difficulte, temps_total, publie);
-
--- Index pour la gestion des stocks proches de péremption
-CREATE INDEX idx_stocks_peremption_user 
-ON stocks_utilisateur(utilisateur_id, date_peremption, quantite);
-
--- Index pour l'historique récent des recettes
-CREATE INDEX idx_historique_recent 
-ON historique_recettes(utilisateur_id, date_realisation DESC, note);
-
--- Index pour les recettes réalisables avec les stocks
-CREATE INDEX idx_ingredients_recette_quantite 
-ON ingredients_recette(ingredient_id, quantite, optionnel);
-
--- Index pour les préférences utilisateurs
-CREATE INDEX idx_preferences_actives 
-ON preferences_ingredients(utilisateur_id, type_preference);
-
--- Index pour les commentaires récents
-CREATE INDEX idx_commentaires_recent 
-ON commentaires(recette_id, created_at DESC);
-
--- Index pour la recherche d'allergènes
-CREATE INDEX idx_ingredients_allergenes_search 
-ON ingredients_allergenes(allergene_id, ingredient_id);
-
--- Index pour les listes de courses
-CREATE INDEX idx_liste_courses_active 
-ON liste_courses(utilisateur_id, statut, date_courses_prevue);
-
--- Index pour les statistiques utilisateur
-CREATE INDEX idx_historique_stats 
-ON historique_recettes(utilisateur_id, note, date_realisation);
-
--- Index pour la recherche de recettes favorites
-CREATE INDEX idx_favoris_user_date 
-ON recettes_favoris(utilisateur_id, created_at DESC);
-
--- Index pour l'optimisation des calculs de coût
-CREATE INDEX idx_ingredients_prix 
-ON ingredients(approuve, prix_estime);
-
--- Index pour la recherche par catégorie d'ingrédients
-CREATE INDEX idx_ingredients_categorie_nom 
-ON ingredients(categorie_id, nom, approuve);
-
--- =============================================
--- Index de texte intégral supplémentaires
--- =============================================
-
--- Index fulltext pour la recherche dans les instructions
-ALTER TABLE recettes 
+-- Fulltext index for search in instructions
+ALTER TABLE recipes 
 ADD FULLTEXT idx_fulltext_instructions (instructions);
 
--- Index fulltext pour la recherche dans les commentaires
-ALTER TABLE commentaires 
-ADD FULLTEXT idx_fulltext_commentaire (commentaire);
+-- Fulltext index for search in comments
+ALTER TABLE comments 
+ADD FULLTEXT idx_fulltext_comment (comment);
 
--- Index fulltext pour la recherche d'ingrédients
+-- Fulltext index for ingredient search
 ALTER TABLE ingredients 
-ADD FULLTEXT idx_fulltext_nom (nom);
+ADD FULLTEXT idx_fulltext_name (name);
 
 -- =============================================
--- Vues matérialisées (simulées avec des tables)
+-- Materialized views (simulated with tables)
 -- =============================================
 
--- Table pour stocker les statistiques calculées des recettes
-CREATE TABLE IF NOT EXISTS stats_recettes (
-    recette_id INT PRIMARY KEY,
-    note_moyenne DECIMAL(3,2),
-    nb_evaluations INT,
-    nb_realisations INT,
-    derniere_realisation DATETIME,
-    cout_moyen DECIMAL(6,2),
+-- Table to store calculated recipe statistics
+CREATE TABLE IF NOT EXISTS recipe_stats (
+    recipe_id INT PRIMARY KEY,
+    average_rating DECIMAL(3,2),
+    rating_count INT,
+    completion_count INT,
+    last_completion DATETIME,
+    average_cost DECIMAL(6,2),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE CASCADE,
-    INDEX idx_stats_note (note_moyenne DESC),
-    INDEX idx_stats_popularite (nb_realisations DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+    INDEX idx_stats_rating (average_rating DESC),
+    INDEX idx_stats_popularity (completion_count DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Table pour stocker les compatibilités régime/recette
-CREATE TABLE IF NOT EXISTS recettes_regimes_compatibles (
-    recette_id INT NOT NULL,
-    regime_id INT NOT NULL,
+-- Table to store diet/recipe compatibility
+CREATE TABLE IF NOT EXISTS recipe_diet_compatibility (
+    recipe_id INT NOT NULL,
+    diet_id INT NOT NULL,
     compatible BOOLEAN DEFAULT TRUE,
-    verifie BOOLEAN DEFAULT FALSE,
+    verified BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (recette_id, regime_id),
-    FOREIGN KEY (recette_id) REFERENCES recettes(id) ON DELETE CASCADE,
-    FOREIGN KEY (regime_id) REFERENCES regimes_alimentaires(id) ON DELETE CASCADE,
-    INDEX idx_regime_compatible (regime_id, compatible)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    PRIMARY KEY (recipe_id, diet_id),
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+    FOREIGN KEY (diet_id) REFERENCES dietary_regimens(id) ON DELETE CASCADE,
+    INDEX idx_diet_compatible (diet_id, compatible)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- =============================================
--- Index pour les performances des jointures
+-- Indexes for join performance
 -- =============================================
 
--- Amélioration des performances pour les jointures fréquentes
-CREATE INDEX idx_ingredients_recette_join 
-ON ingredients_recette(recette_id, ingredient_id, quantite);
+-- Performance improvement for frequent joins
+CREATE INDEX idx_recipe_ingredients_join 
+ON recipe_ingredients(recipe_id, ingredient_id, quantity);
 
-CREATE INDEX idx_stocks_join 
-ON stocks_utilisateur(utilisateur_id, ingredient_id, quantite);
+CREATE INDEX idx_stock_join 
+ON user_stock(user_id, ingredient_id, quantity);
 
-CREATE INDEX idx_historique_join 
-ON historique_recettes(utilisateur_id, recette_id, date_realisation);
+CREATE INDEX idx_history_join 
+ON recipe_history(user_id, recipe_id, completion_date);

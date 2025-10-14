@@ -19,6 +19,7 @@ validator = { version = "0.16", features = ["derive"] }
 actix-web-httpauth = "0.8.2"
 env_logger = "0.11.8"
 log = "0.4"
+rust_decimal = "1.33"
 
 
 [profile.dev]
