@@ -44,40 +44,6 @@ BEGIN
 END//
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
--- =============================================
--- Procedure: User authentication
--- =============================================
-CREATE PROCEDURE sp_authenticate_user(
-    IN p_email VARCHAR(255),
-    IN p_password VARCHAR(255)
-)
-BEGIN
-    SELECT 
-        id,
-        email,
-        last_name,
-        first_name,
-        role,
-        active
-    FROM users
-    WHERE email = p_email 
-        AND password_hash = p_password
-        AND active = TRUE;
-END//
-
 -- =============================================
 -- Procedure: Create new user
 -- =============================================
@@ -85,27 +51,27 @@ CREATE PROCEDURE sp_create_user(
     IN p_email VARCHAR(255),
     IN p_password VARCHAR(255),
     IN p_last_name VARCHAR(100),
-    IN p_first_name VARCHAR(100),
-    IN p_date_of_birth DATE,
-    IN p_city VARCHAR(100),
-    OUT p_user_id INT
+    IN p_first_name VARCHAR(100)
 )
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Error creating user';
-    END;
-    
-    START TRANSACTION;
-    
-    INSERT INTO users (email, password_hash, last_name, first_name, date_of_birth, city)
-    VALUES (p_email, p_password, p_last_name, p_first_name, p_date_of_birth, p_city);
-    
-    SET p_user_id = LAST_INSERT_ID();
-    
-    COMMIT;
+    INSERT INTO users (email, password_hash, last_name, first_name)
+    VALUES (p_email, p_password, p_last_name, p_first_name);
+
+    SELECT LAST_INSERT_ID() as id;
 END//
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- =============================================
 -- Procedure: Recommend recipes

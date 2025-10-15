@@ -176,4 +176,64 @@ INSERT INTO comments (recipe_id, user_id, comment, rating, history_id) VALUES
 (6, 3, 'The chicken was juicy and the vegetables perfectly roasted. A delight!', 5, 5),
 (3, 4, 'A classic that\'s always appreciated. I used herbs from my garden.', 5, 6),
 (9, 4, 'Good curry but I had to add coconut milk to mellow it out.', 4, 7),
-(8, 5, 'The best apple pie I\'ve made! Crispy crust a
+(8, 5, 'The best apple pie I\'ve made! Crispy crust and tender apples.', 5, 8);
+
+-- =============================================
+-- User stock (examples)
+-- =============================================
+INSERT INTO user_stock (user_id, ingredient_id, quantity, unit_of_measure, expiration_date, location) VALUES
+-- Marie's stock (id=2)
+(2, 1, 500, 'g', DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'fridge'),
+(2, 3, 300, 'g', DATE_ADD(CURDATE(), INTERVAL 10 DAY), 'pantry'),
+(2, 33, 1000, 'g', NULL, 'pantry'),
+(2, 50, 500, 'ml', NULL, 'pantry'),
+(2, 17, 500, 'g', DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'fridge'),
+-- Jean's stock (id=3)
+(3, 4, 2000, 'g', DATE_ADD(CURDATE(), INTERVAL 20 DAY), 'pantry'),
+(3, 25, 1000, 'ml', DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'fridge'),
+(3, 54, 12, 'piece', DATE_ADD(CURDATE(), INTERVAL 14 DAY), 'fridge'),
+(3, 36, 2000, 'g', NULL, 'pantry'),
+-- Sophie's stock (id=4)
+(4, 5, 300, 'g', DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'fridge'),
+(4, 6, 250, 'g', DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'fridge'),
+(4, 7, 400, 'g', DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'fridge'),
+(4, 34, 500, 'g', NULL, 'pantry'),
+(4, 38, 200, 'g', NULL, 'pantry');
+
+-- =============================================
+-- User dietary preferences
+-- =============================================
+-- Marie is vegetarian
+INSERT INTO ingredient_preferences (user_id, ingredient_id, preference_type) VALUES
+(2, 16, 'excluded'), -- No beef
+(2, 18, 'excluded'), -- No pork
+(2, 19, 'excluded'), -- No lamb
+(2, 21, 'excluded'), -- No salmon
+(2, 22, 'excluded'), -- No cod
+(2, 23, 'excluded'), -- No tuna
+(2, 24, 'excluded'); -- No shrimp
+
+-- Sophie is allergic to gluten
+INSERT INTO dietary_preferences (user_id, allergen_id, preference_type, severity) VALUES
+(4, 1, 'allergy', 'severe');
+
+-- Pierre avoids dairy products
+INSERT INTO dietary_preferences (user_id, allergen_id, preference_type, severity) VALUES
+(5, 2, 'intolerance', 'moderate');
+
+-- =============================================
+-- Example shopping lists
+-- =============================================
+INSERT INTO shopping_lists (user_id, name, planned_shopping_date, status) VALUES
+(2, 'Weekend shopping', DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'in_progress'),
+(3, 'Sunday family meal', DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'in_progress');
+
+INSERT INTO shopping_list_ingredients (list_id, ingredient_id, quantity, unit_of_measure, recipe_id, purchased) VALUES
+-- Marie's list
+(1, 16, 500, 'g', 1, FALSE), -- Beef for bolognese
+(1, 2, 200, 'g', 1, FALSE), -- Carrots
+(1, 29, 200, 'g', NULL, FALSE), -- Butter
+-- Jean's list
+(2, 17, 1500, 'g', 6, FALSE), -- Chicken for roast
+(2, 4, 1000, 'g', 6, FALSE), -- Potatoes
+(2, 14, 2, 'piece', 6, TRUE); -- Lemons (already purchased)

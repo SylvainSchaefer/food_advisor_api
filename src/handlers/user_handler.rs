@@ -13,7 +13,6 @@ pub async fn login(
 
     match user_repo.find_by_email(&req.email).await {
         Ok(Some(user)) => {
-            log::warn!("User test \n\n\n\n\n)");
             return handle_login(user.id, user.email, user.password_hash, &user.role, &req.password).await;
         }
         Err(e) => {
@@ -37,8 +36,6 @@ async fn handle_login(
     role: &Role,
     password: &str,
 ) -> HttpResponse {
-
-        log::warn!("User {} test \n\n\n\n\n)", email);
     if password_hash.is_empty() {
         // Autoriser la connexion sans vérification de mot de passe
         log::warn!("User {} logged in without password verification (empty hash)", email);
@@ -112,7 +109,7 @@ pub async fn register(
         }))
     };
 
-    match user_repo.create( &req.first_name, &req.email, &password_hash).await {
+    match user_repo.create( &req.email, &password_hash, &req.first_name, &req.last_name).await {
         Ok(user_id) => {
             let secret = std::env::var("JWT_SECRET").unwrap();
             let expiration = std::env::var("JWT_EXPIRATION")
