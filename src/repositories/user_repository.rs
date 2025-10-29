@@ -32,7 +32,8 @@ impl UserRepository {
             country: row.get(9),
             role: match role_str.as_str() {
                 "user" => Role::User,
-                _ => Role::Administrator,
+                "administrator" => Role::Administrator,
+                _ => Role::User
             },
             dietary_regimen_id: row.get(11),
             active: row.get(12),

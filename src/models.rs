@@ -1,6 +1,6 @@
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use chrono::{DateTime, NaiveDate, Utc};
 use validator::Validate;
 
 // =============================================
@@ -21,9 +21,6 @@ pub enum Role {
     User,
     Administrator,
 }
-
-
-
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
@@ -165,7 +162,6 @@ pub struct Allergen {
     pub id: i32,
     pub name: String,
     pub description: Option<String>,
-    pub risk_level: RiskLevel,
     pub created_at: DateTime<Utc>,
 }
 
