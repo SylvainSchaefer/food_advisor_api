@@ -310,3 +310,12 @@ pub struct UserSession {
     pub last_activity: NaiveDateTime,
     pub is_active: bool,
 }
+
+/// Structure pour les claims JWT (légère, seulement ce qui est nécessaire)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TokenClaims {
+    pub sub: String, // user_id
+    pub email: String,
+    pub role: Role,
+    pub exp: usize, // expiration timestamp
+}

@@ -1,4 +1,5 @@
 mod handlers;
+mod middlewares;
 mod models;
 mod repositories;
 mod utils;
@@ -9,6 +10,8 @@ use actix_web_httpauth::middleware::HttpAuthentication;
 use dotenv::dotenv;
 use sqlx::mysql::MySqlPoolOptions;
 use std::time::Duration;
+
+use crate::middlewares::AdminOnly;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -76,7 +79,7 @@ async fn main() -> std::io::Result<()> {
 
     let bind_address = format!("{}:{}", host, port);
     println!("\n🚀 Server starting on http://{}", bind_address);
-    println!("📝 API Documentation: http://{}/api", bind_address);
+    println!("📝 API: http://{}/api", bind_address);
     println!(
         "🔑 JWT Secret configured: {}",
         if std::env::var("JWT_SECRET").is_ok() {
@@ -109,11 +112,13 @@ async fn main() -> std::io::Result<()> {
                     )
                     .service(
                         web::scope("/users")
+                            .wrap(AdminOnly)
                             .wrap(auth.clone())
                             .route("/all", web::get().to(handlers::get_all_users)),
                     )
                     .service(
                         web::scope("/admin")
+                            .wrap(AdminOnly)
                             .wrap(auth)
                             .route("/create", web::post().to(handlers::create_admin)),
                     ),

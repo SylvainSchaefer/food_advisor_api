@@ -119,8 +119,6 @@ impl UserRepository {
             .fetch_one(&mut *conn) // ← Sur la même connexion
             .await?;
 
-        log::info!("CREATE : {:?}", result);
-
         match result {
             (Some(user_id), None) => Ok(user_id as u32),
             (None, Some(error_msg)) => Err(Error::Protocol(error_msg)),

@@ -1,6 +1,6 @@
 use crate::models::{Role, User};
 use crate::repositories::UserRepository;
-use crate::utils::auth::{TokenClaims, create_jwt};
+use crate::utils::auth::create_jwt;
 use actix_web::{HttpResponse, web};
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::NaiveDate;

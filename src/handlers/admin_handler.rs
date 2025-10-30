@@ -5,7 +5,6 @@ use serde::Deserialize;
 use sqlx::MySqlPool;
 
 use crate::repositories::UserRepository;
-use crate::utils::auth::TokenClaims;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateAdminRequest {
@@ -19,16 +18,7 @@ pub struct CreateAdminRequest {
     pub city: Option<String>,
 }
 
-pub async fn get_all_users(
-    pool: web::Data<MySqlPool>,
-    claims: web::ReqData<TokenClaims>,
-) -> HttpResponse {
-    if !claims.is_admin() {
-        return HttpResponse::Forbidden().json(serde_json::json!({
-            "error": "Admin access required"
-        }));
-    }
-
+pub async fn get_all_users(pool: web::Data<MySqlPool>) -> HttpResponse {
     let user_repo = UserRepository::new(pool.get_ref().clone());
 
     match user_repo.get_all().await {
@@ -62,14 +52,7 @@ pub async fn get_all_users(
 pub async fn create_admin(
     pool: web::Data<MySqlPool>,
     req: web::Json<CreateAdminRequest>,
-    claims: web::ReqData<TokenClaims>,
 ) -> HttpResponse {
-    if !claims.is_admin() {
-        return HttpResponse::Forbidden().json(serde_json::json!({
-            "error": "Admin access required"
-        }));
-    }
-
     let user_repo = UserRepository::new(pool.get_ref().clone());
 
     // Hasher le mot de passe

@@ -1,19 +1,8 @@
-use crate::models::{Role, User};
+use crate::models::{Role, TokenClaims, User};
 use actix_web::{Error, HttpMessage, dev::ServiceRequest};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::Utc;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
-use serde::{Deserialize, Serialize};
-
-/// Structure pour les claims JWT (légère, seulement ce qui est nécessaire)
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct TokenClaims {
-    pub sub: String, // user_id
-    pub email: String,
-    pub role: Role,
-    pub exp: usize, // expiration timestamp
-}
-
 impl TokenClaims {
     /// Crée des claims à partir d'un User
     pub fn from_user(user: &User, expiration_seconds: i64) -> Self {
