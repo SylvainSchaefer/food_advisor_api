@@ -1,28 +1,53 @@
-use actix_web::{dev::ServiceRequest, Error, HttpMessage};
+use crate::models::{Role, User};
+use actix_web::{Error, HttpMessage, dev::ServiceRequest};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use chrono::Utc;
-use crate::models::{Claims, Role};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use serde::{Deserialize, Serialize};
+
+/// Structure pour les claims JWT (légère, seulement ce qui est nécessaire)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct TokenClaims {
+    pub sub: String, // user_id
+    pub email: String,
+    pub role: Role,
+    pub exp: usize, // expiration timestamp
+}
+
+impl TokenClaims {
+    /// Crée des claims à partir d'un User
+    pub fn from_user(user: &User, expiration_seconds: i64) -> Self {
+        let expiration_time = Utc::now()
+            .checked_add_signed(chrono::Duration::seconds(expiration_seconds))
+            .expect("valid timestamp")
+            .timestamp();
+
+        Self {
+            sub: user.user_id.to_string(),
+            email: user.email.clone(),
+            role: user.role.clone(),
+            exp: expiration_time as usize,
+        }
+    }
+
+    /// Extrait le user_id depuis les claims
+    pub fn user_id(&self) -> Result<u32, std::num::ParseIntError> {
+        self.sub.parse::<u32>()
+    }
+
+    /// Vérifie si l'utilisateur est administrateur
+    pub fn is_admin(&self) -> bool {
+        matches!(self.role, Role::Administrator)
+    }
+}
 
 /// Crée un token JWT pour un utilisateur
 pub fn create_jwt(
-    user_id: i32,
-    email: &str,
-    role: Role,
+    user: &User,
     secret: &str,
-    expiration: i64,
+    expiration_seconds: i64,
 ) -> Result<String, jsonwebtoken::errors::Error> {
-    let expiration_time = Utc::now()
-        .checked_add_signed(chrono::Duration::seconds(expiration))
-        .expect("valid timestamp")
-        .timestamp();
-
-    let claims = Claims {
-        sub: user_id.to_string(),
-        email: email.to_owned(),
-        role,
-        exp: expiration_time as usize,
-    };
+    let claims = TokenClaims::from_user(user, expiration_seconds);
 
     encode(
         &Header::default(),
@@ -32,8 +57,8 @@ pub fn create_jwt(
 }
 
 /// Décode et valide un token JWT
-pub fn decode_jwt(token: &str, secret: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
-    let token_data = decode::<Claims>(
+pub fn decode_jwt(token: &str, secret: &str) -> Result<TokenClaims, jsonwebtoken::errors::Error> {
+    let token_data = decode::<TokenClaims>(
         token,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
@@ -58,12 +83,7 @@ pub async fn validator(
     }
 }
 
-/// Middleware helper pour vérifier si l'utilisateur est administrateur
-pub fn is_admin(claims: &Claims) -> bool {
-    claims.role == Role::Administrator
-}
-
-/// Middleware helper pour extraire les claims depuis la requête
-pub fn get_claims_from_request(req: &ServiceRequest) -> Option<Claims> {
-    req.extensions().get::<Claims>().cloned()
+/// Extrait les claims depuis la requête
+pub fn get_claims_from_request(req: &ServiceRequest) -> Option<TokenClaims> {
+    req.extensions().get::<TokenClaims>().cloned()
 }

@@ -1,436 +1,312 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use validator::Validate;
 
-// =============================================
-// Enums
-// =============================================
+// =====================================================
+// ENUMS
+// =====================================================
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
-#[sqlx(rename_all = "UPPERCASE")]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR", rename_all = "PascalCase")]
 pub enum Gender {
-    M,
-    F,
+    Male,
+    Female,
     Other,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
-#[sqlx(rename_all = "lowercase")]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR", rename_all = "PascalCase")]
 pub enum Role {
-    User,
     Administrator,
+    Regular,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum UnitOfMeasure {
-    #[sqlx(rename = "g")]
-    Gram,
-    #[sqlx(rename = "kg")]
-    Kilogram,
-    #[sqlx(rename = "ml")]
-    Milliliter,
-    #[sqlx(rename = "l")]
-    Liter,
-    #[sqlx(rename = "piece")]
-    Piece,
-    #[sqlx(rename = "teaspoon")]
-    Teaspoon,
-    #[sqlx(rename = "tablespoon")]
-    Tablespoon,
-    #[sqlx(rename = "cup")]
-    Cup,
-    #[sqlx(rename = "pinch")]
-    Pinch,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR", rename_all = "PascalCase")]
 pub enum Difficulty {
     Easy,
     Medium,
     Hard,
+    Expert,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum PreferenceType {
-    Allergy,
-    Intolerance,
-    Aversion,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "VARCHAR", rename_all = "PascalCase")]
 pub enum Severity {
     Mild,
     Moderate,
     Severe,
+    #[sqlx(rename = "Life-threatening")]
+    LifeThreatening,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum IngredientPreferenceType {
+pub enum PreferenceType {
     Excluded,
-    Avoided,
     Preferred,
-    Favorite,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum RiskLevel {
-    Low,
-    Medium,
-    High,
+pub enum MeasurementUnit {
+    Tablespoon,
+    Teaspoon,
+    Liters,
+    Milliliters,
+    Grams,
+    Kilograms,
+    Cups,
+    Pieces,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum ListStatus {
-    #[sqlx(rename = "in_progress")]
-    InProgress,
-    #[sqlx(rename = "completed")]
-    Completed,
-    #[sqlx(rename = "archived")]
-    Archived,
+pub enum StepType {
+    Cooking,
+    Action,
 }
 
-// =============================================
-// Main tables
-// =============================================
+// =====================================================
+// MAIN MODELS
+// =====================================================
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct DietaryRegimen {
-    pub id: i32,
-    pub name: String,
-    pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-#[sqlx(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
-    pub id: i32,
-    pub email: String,
-    pub password_hash: String,
-    pub last_name: String,
+    pub user_id: u32,
     pub first_name: String,
-    pub date_of_birth: Option<NaiveDate>,
+    pub last_name: String,
     pub gender: Gender,
-    pub city: Option<String>,
-    pub postal_code: Option<String>,
-    pub country: String,
+    pub password_hash: String,
+    pub email: String,
     pub role: Role,
-    pub dietary_regimen_id: Option<i32>,
-    pub active: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub country: Option<String>,
+    pub city: Option<String>,
+    pub is_active: bool,
+    pub birth_date: Option<NaiveDate>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct IngredientCategory {
-    pub id: i32,
-    pub name: String,
-    pub description: Option<String>,
-    pub icon: Option<String>,
-    pub created_at: DateTime<Utc>,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserWithStats {
+    pub user_id: u32,
+    pub first_name: String,
+    pub last_name: String,
+    pub gender: Gender,
+    pub email: String,
+    pub role: Role,
+    pub country: Option<String>,
+    pub city: Option<String>,
+    pub is_active: bool,
+    pub birth_date: Option<NaiveDate>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub age: Option<i32>,
+    pub recipes_created: Option<i64>,
+    pub recipes_completed: Option<i64>,
+    pub average_rating_given: Option<f64>,
+    pub allergy_count: Option<i64>,
+    pub stock_items_count: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct Ingredient {
-    pub id: i32,
-    pub name: String,
-    pub category_id: i32,
-    pub unit_of_measure: UnitOfMeasure,
-    pub calories_per_100g: Option<rust_decimal::Decimal>,
-    pub protein_per_100g: Option<rust_decimal::Decimal>,
-    pub carbs_per_100g: Option<rust_decimal::Decimal>,
-    pub fat_per_100g: Option<rust_decimal::Decimal>,
-    pub fiber_per_100g: Option<rust_decimal::Decimal>,
-    pub estimated_price: Option<rust_decimal::Decimal>,
-    pub shelf_life_days: i32,
-    pub created_by: Option<i32>,
-    pub approved: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct Allergen {
-    pub id: i32,
-    pub name: String,
-    pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct IngredientAllergen {
-    pub ingredient_id: i32,
-    pub allergen_id: i32,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct DietaryPreference {
-    pub id: i32,
-    pub user_id: i32,
-    pub allergen_id: Option<i32>,
-    pub preference_type: PreferenceType,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserAllergyDetail {
+    pub allergy_id: u32,
+    pub allergy_name: String,
     pub severity: Severity,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub allergy_added_date: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct IngredientPreference {
-    pub id: i32,
-    pub user_id: i32,
-    pub ingredient_id: i32,
-    pub preference_type: IngredientPreferenceType,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct Recipe {
-    pub id: i32,
-    pub title: String,
-    pub description: Option<String>,
-    pub instructions: String,
-    pub prep_time: Option<i32>,
-    pub cook_time: Option<i32>,
-    pub total_time: Option<i32>,
-    pub servings: i32,
-    pub difficulty: Difficulty,
-    pub estimated_cost: Option<rust_decimal::Decimal>,
-    pub image_url: Option<String>,
-    pub created_by: i32,
-    pub published: bool,
-    pub average_rating: rust_decimal::Decimal,
-    pub rating_count: i32,
-    pub completion_count: i32,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct FavoriteRecipe {
-    pub user_id: i32,
-    pub recipe_id: i32,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct RecipeIngredient {
-    pub id: i32,
-    pub recipe_id: i32,
-    pub ingredient_id: i32,
-    pub quantity: rust_decimal::Decimal,
-    pub unit_of_measure: Option<String>,
-    pub optional: bool,
-    pub notes: Option<String>,
-    pub order_position: i32,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct RecipeStep {
-    pub id: i32,
-    pub recipe_id: i32,
-    pub step_number: i32,
-    pub description: String,
-    pub duration_minutes: Option<i32>,
-    pub image_url: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct UserStock {
-    pub id: i32,
-    pub user_id: i32,
-    pub ingredient_id: i32,
-    pub quantity: rust_decimal::Decimal,
-    pub unit_of_measure: Option<String>,
-    pub expiration_date: Option<NaiveDate>,
-    pub location: String,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct RecipeHistory {
-    pub id: i32,
-    pub user_id: i32,
-    pub recipe_id: i32,
-    pub completion_date: DateTime<Utc>,
-    pub rating: Option<i32>,
-    pub actual_time_minutes: Option<i32>,
-    pub servings_made: Option<i32>,
-    pub stock_updated: bool,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct Comment {
-    pub id: i32,
-    pub recipe_id: i32,
-    pub user_id: i32,
-    pub history_id: Option<i32>,
-    pub comment: String,
-    pub rating: Option<i32>,
-    pub visible: bool,
-    pub moderated: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct ShoppingList {
-    pub id: i32,
-    pub user_id: i32,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Allergy {
+    pub allergy_id: u32,
     pub name: String,
-    pub creation_date: NaiveDate,
-    pub planned_shopping_date: Option<NaiveDate>,
-    pub status: ListStatus,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub description: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
-pub struct ShoppingListIngredient {
-    pub id: i32,
-    pub list_id: i32,
-    pub ingredient_id: i32,
-    pub quantity: rust_decimal::Decimal,
-    pub unit_of_measure: Option<String>,
-    pub recipe_id: Option<i32>,
-    pub purchased: bool,
-    pub actual_price: Option<rust_decimal::Decimal>,
-    pub notes: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserAllergy {
+    pub user_id: u32,
+    pub allergy_id: u32,
+    pub severity: Severity,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-// =============================================
-// DTOs for requests
-// =============================================
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct RegisterRequest {
-    #[validate(email)]
-    pub email: String,
-    #[validate(length(min = 8))]
-    pub password: String,
-    #[validate(length(min = 2, max = 100))]
-    pub last_name: String,
-    #[validate(length(min = 2, max = 100))]
-    pub first_name: String,
-    pub date_of_birth: Option<NaiveDate>,
-    pub gender: Option<Gender>,
-    pub city: Option<String>,
-    pub postal_code: Option<String>,
-    pub dietary_regimen_id: Option<i32>,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Ingredient {
+    pub ingredient_id: u32,
+    pub name: String,
+    pub carbohydrates: Option<f64>,
+    pub proteins: Option<f64>,
+    pub fats: Option<f64>,
+    pub fibers: Option<f64>,
+    pub calories: Option<f64>,
+    pub price: Option<f64>,
+    pub weight: Option<f64>,
+    pub measurement_unit: MeasurementUnit,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct LoginRequest {
-    pub email: String,
-    pub password: String,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct IngredientAllergy {
+    pub ingredient_id: u32,
+    pub allergy_id: u32,
 }
 
-#[derive(Debug, Serialize)]
-pub struct AuthResponse {
-    pub token: String,
-    pub user: UserResponse,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct IngredientCategory {
+    pub category_id: u32,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize)]
-pub struct UserResponse {
-    pub id: i32,
-    pub email: String,
-    pub last_name: String,
-    pub first_name: String,
-    pub role: Role,
-    pub active: bool,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct IngredientCategoryAssignment {
+    pub ingredient_id: u32,
+    pub category_id: u32,
 }
 
-impl From<User> for UserResponse {
-    fn from(user: User) -> Self {
-        UserResponse {
-            id: user.id,
-            email: user.email,
-            last_name: user.last_name,
-            first_name: user.first_name,
-            role: user.role,
-            active: user.active,
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserIngredientCategoryPreference {
+    pub user_id: u32,
+    pub category_id: u32,
+    pub preference_type: PreferenceType,
+    pub created_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Claims {
-    pub sub: String,
-    pub email: String,
-    pub role: Role,
-    pub exp: usize,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserIngredientPreference {
+    pub user_id: u32,
+    pub ingredient_id: u32,
+    pub preference_type: PreferenceType,
+    pub created_at: NaiveDateTime,
 }
 
-// =============================================
-// DTOs for recipe creation
-// =============================================
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserIngredientStock {
+    pub stock_id: u32,
+    pub user_id: u32,
+    pub ingredient_id: u32,
+    pub quantity: f64,
+    pub expiration_date: Option<NaiveDate>,
+    pub storage_location: Option<String>,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
 
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateRecipeRequest {
-    #[validate(length(min = 3, max = 200))]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Recipe {
+    pub recipe_id: u32,
     pub title: String,
     pub description: Option<String>,
-    #[validate(length(min = 10))]
-    pub instructions: String,
-    pub prep_time: Option<i32>,
-    pub cook_time: Option<i32>,
-    pub servings: i32,
+    pub servings: Option<u32>,
+    pub is_published: bool,
     pub difficulty: Difficulty,
     pub image_url: Option<String>,
-    pub ingredients: Vec<CreateRecipeIngredientRequest>,
-    pub steps: Vec<CreateRecipeStepRequest>,
+    pub author_user_id: u32,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateRecipeIngredientRequest {
-    pub ingredient_id: i32,
-    pub quantity: rust_decimal::Decimal,
-    pub unit_of_measure: Option<String>,
-    pub optional: bool,
-    pub notes: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct RecipeIngredient {
+    pub recipe_id: u32,
+    pub ingredient_id: u32,
+    pub quantity: f64,
+    pub is_optional: bool,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateRecipeStepRequest {
-    pub step_number: i32,
-    #[validate(length(min = 5))]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct RecipeStep {
+    pub recipe_id: u32,
+    pub step_order: u32,
     pub description: String,
-    pub duration_minutes: Option<i32>,
-    pub image_url: Option<String>,
+    pub duration_minutes: Option<u32>,
+    pub step_type: StepType,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
-// =============================================
-// DTOs for stock
-// =============================================
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateStockRequest {
-    pub ingredient_id: i32,
-    pub quantity: rust_decimal::Decimal,
-    pub unit_of_measure: Option<String>,
-    pub expiration_date: Option<NaiveDate>,
-    pub location: Option<String>,
-    pub notes: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct CompletedRecipe {
+    pub completion_id: u32,
+    pub user_id: u32,
+    pub recipe_id: u32,
+    pub completion_date: NaiveDateTime,
+    pub comment: Option<String>,
+    pub rating: Option<u32>,
+    pub created_at: NaiveDateTime,
 }
 
-#[derive(Debug, Deserialize, Validate)]
-pub struct UpdateStockRequest {
-    pub quantity: Option<rust_decimal::Decimal>,
-    pub expiration_date: Option<NaiveDate>,
-    pub location: Option<String>,
-    pub notes: Option<String>,
+// =====================================================
+// AUDIT/HISTORY MODELS
+// =====================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct AuditDeletion {
+    pub audit_id: u32,
+    pub table_name: String,
+    pub record_id: u32,
+    pub deleted_data: serde_json::Value,
+    pub deleted_by_user_id: Option<u32>,
+    pub deleted_at: NaiveDateTime,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct HistoryUser {
+    pub history_id: u32,
+    pub user_id: u32,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub gender: Option<Gender>,
+    pub email: Option<String>,
+    pub role: Option<Role>,
+    pub country: Option<String>,
+    pub city: Option<String>,
+    pub is_active: Option<bool>,
+    pub birth_date: Option<NaiveDate>,
+    pub change_type: String,
+    pub changed_by_user_id: Option<u32>,
+    pub changed_at: NaiveDateTime,
+    pub change_details: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ErrorLog {
+    pub error_id: u32,
+    pub error_type: String,
+    pub error_message: String,
+    pub error_details: Option<serde_json::Value>,
+    pub procedure_name: Option<String>,
+    pub user_id: Option<u32>,
+    pub occurred_at: NaiveDateTime,
+    pub ip_address: Option<String>,
+    pub resolved: bool,
+    pub resolved_at: Option<NaiveDateTime>,
+    pub resolved_by_user_id: Option<u32>,
+    pub resolution_notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserSession {
+    pub session_id: u32,
+    pub user_id: u32,
+    pub session_token: String,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub login_time: NaiveDateTime,
+    pub logout_time: Option<NaiveDateTime>,
+    pub last_activity: NaiveDateTime,
+    pub is_active: bool,
 }

@@ -565,15 +565,6 @@ INSERT INTO completed_recipes (user_id, recipe_id, rating, comment, completion_d
 (10, 9, 4, 'Fresh and tasty', DATE_SUB(NOW(), INTERVAL 4 DAY)),
 (10, 5, 3, 'Good but salmon was a bit dry', DATE_SUB(NOW(), INTERVAL 10 DAY));
 
--- =====================================================
--- USER SESSIONS DATA (for testing)
--- =====================================================
-
-INSERT INTO user_sessions (user_id, session_token, ip_address, user_agent, login_time, is_active) VALUES
-(1, 'token_john_active_001', '192.168.1.100', 'Mozilla/5.0 Chrome/91.0', NOW(), TRUE),
-(2, 'token_marie_active_001', '192.168.1.101', 'Mozilla/5.0 Firefox/89.0', NOW(), TRUE),
-(3, 'token_carlos_inactive_001', '192.168.1.102', 'Mozilla/5.0 Safari/14.1', DATE_SUB(NOW(), INTERVAL 2 DAY), FALSE),
-(4, 'token_emma_active_001', '192.168.1.103', 'Mozilla/5.0 Chrome/91.0', DATE_SUB(NOW(), INTERVAL 1 HOUR), TRUE);
 
 -- =====================================================
 -- SAMPLE HISTORY DATA (for testing triggers)
