@@ -19,11 +19,6 @@ impl TokenClaims {
         }
     }
 
-    /// Extrait le user_id depuis les claims
-    pub fn user_id(&self) -> Result<u32, std::num::ParseIntError> {
-        self.sub.parse::<u32>()
-    }
-
     /// Vérifie si l'utilisateur est administrateur
     pub fn is_admin(&self) -> bool {
         matches!(self.role, Role::Administrator)
@@ -70,9 +65,4 @@ pub async fn validator(
         }
         Err(_) => Err((actix_web::error::ErrorUnauthorized("Invalid token"), req)),
     }
-}
-
-/// Extrait les claims depuis la requête
-pub fn get_claims_from_request(req: &ServiceRequest) -> Option<TokenClaims> {
-    req.extensions().get::<TokenClaims>().cloned()
 }

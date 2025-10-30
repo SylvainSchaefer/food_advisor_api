@@ -1,55 +1,10 @@
-use crate::models::{Role, User};
+use crate::models::{AuthResponse, LoginRequest, RegisterRequest, User};
 use crate::repositories::UserRepository;
 use crate::utils::auth::create_jwt;
 use actix_web::{HttpResponse, web};
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
 use sqlx::MySqlPool;
-
-// =====================================================
-// REQUEST/RESPONSE MODELS
-// =====================================================
-
-#[derive(Debug, Deserialize)]
-pub struct LoginRequest {
-    pub email: String,
-    pub password: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct RegisterRequest {
-    pub email: String,
-    pub password: String,
-    pub first_name: String,
-    pub last_name: String,
-    pub gender: String,             // "Male", "Female", "Other"
-    pub birth_date: Option<String>, // Format: "YYYY-MM-DD"
-    pub country: Option<String>,
-    pub city: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AuthResponse {
-    pub token: String,
-    pub user_id: u32,
-    pub email: String,
-    pub role: Role,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ProfileResponse {
-    pub user_id: u32,
-    pub first_name: String,
-    pub last_name: String,
-    pub email: String,
-    pub role: Role,
-    pub gender: String,
-    pub birth_date: Option<NaiveDate>,
-    pub country: Option<String>,
-    pub city: Option<String>,
-    pub created_at: String,
-}
 
 // =====================================================
 // HANDLERS
