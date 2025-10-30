@@ -4,7 +4,10 @@ use chrono::NaiveDate;
 use serde::Deserialize;
 use sqlx::MySqlPool;
 
-use crate::repositories::UserRepository;
+use crate::{
+    models::{PaginatedResponse, PaginationInfo, PaginationParams},
+    repositories::UserRepository,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct CreateAdminRequest {
@@ -18,11 +21,18 @@ pub struct CreateAdminRequest {
     pub city: Option<String>,
 }
 
-pub async fn get_all_users(pool: web::Data<MySqlPool>) -> HttpResponse {
+pub async fn get_all_users(
+    pool: web::Data<MySqlPool>,
+    query: web::Query<PaginationParams>,
+) -> HttpResponse {
+    let mut params = query.into_inner();
+
     let user_repo = UserRepository::new(pool.get_ref().clone());
 
-    match user_repo.get_all().await {
-        Ok(users) => {
+    match user_repo.get_all(params.page, params.page_size).await {
+        Ok((users, total_count)) => {
+            let total_pages = ((total_count as f64) / (params.page_size as f64)).ceil() as i32;
+
             let user_list: Vec<_> = users
                 .iter()
                 .map(|u| {
@@ -38,7 +48,19 @@ pub async fn get_all_users(pool: web::Data<MySqlPool>) -> HttpResponse {
                 })
                 .collect();
 
-            HttpResponse::Ok().json(user_list)
+            let response = PaginatedResponse {
+                data: user_list,
+                pagination: PaginationInfo {
+                    current_page: params.page,
+                    page_size: params.page_size,
+                    total_count,
+                    total_pages,
+                    has_next: params.page < total_pages,
+                    has_previous: params.page > 1,
+                },
+            };
+
+            HttpResponse::Ok().json(response)
         }
         Err(e) => {
             log::error!("Database error: {:?}", e);

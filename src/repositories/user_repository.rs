@@ -11,7 +11,7 @@ impl UserRepository {
         Self { pool }
     }
 
-    fn get_user(row: MySqlRow) -> User {
+    fn get_user(row: &MySqlRow) -> User {
         let gender_str: String = row.get(3);
         let role_str: String = row.get(6);
 
@@ -48,7 +48,7 @@ impl UserRepository {
     pub async fn find_by_email(&self, email: &str) -> Result<Option<User>, Error> {
         let user = sqlx::query("CALL sp_get_user_by_email(?)")
             .bind(email)
-            .map(|row: MySqlRow| Self::get_user(row))
+            .map(|row: MySqlRow| Self::get_user(&row))
             .fetch_optional(&self.pool)
             .await?;
 
@@ -56,34 +56,44 @@ impl UserRepository {
     }
 
     pub async fn find_by_id(&self, user_id: u32) -> Result<Option<User>, Error> {
-        let user = sqlx::query(
-            "SELECT user_id, first_name, last_name, gender, password_hash, email, 
-                    role, country, city, is_active, birth_date, created_at, updated_at
-             FROM users 
-             WHERE user_id = ? AND is_active = TRUE
-             LIMIT 1",
-        )
-        .bind(user_id)
-        .map(|row: MySqlRow| Self::get_user(row))
-        .fetch_optional(&self.pool)
-        .await?;
+        let user = sqlx::query("CALL sp_get_user_by_id(?)")
+            .bind(user_id)
+            .map(|row: MySqlRow| Self::get_user(&row))
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(user)
     }
 
-    pub async fn get_all(&self) -> Result<Vec<User>, Error> {
-        let users = sqlx::query(
-            "SELECT user_id, first_name, last_name, gender, password_hash, email, 
-                    role, country, city, is_active, birth_date, created_at, updated_at
-             FROM users 
-             ORDER BY created_at DESC",
-        )
-        .map(|row: MySqlRow| Self::get_user(row))
-        .fetch_all(&self.pool)
-        .await?;
+    pub async fn get_all(
+        &self,
+        page: i32,
+        page_size: i32,
+    ) -> Result<(Vec<User>, i64), sqlx::Error> {
+        // Appel de la procédure stockée avec pagination
+        let mut results = sqlx::query("CALL sp_get_all_user(?, ?)")
+            .bind(page)
+            .bind(page_size)
+            .fetch_all(&self.pool)
+            .await?;
 
-        Ok(users)
+        // Le premier résultat contient le count total
+        let total_count: i64 = if !results.is_empty() {
+            results[0].get(0)
+        } else {
+            0
+        };
+
+        // Les résultats suivants contiennent les utilisateurs
+        let users: Vec<User> = results
+            .iter()
+            .skip(1) // Sauter le premier résultat (count)
+            .map(|row| Self::get_user(row))
+            .collect();
+
+        Ok((users, total_count))
     }
+
     pub async fn create(
         &self,
         first_name: &str,
