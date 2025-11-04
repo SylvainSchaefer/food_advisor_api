@@ -119,8 +119,23 @@ async fn main() -> std::io::Result<()> {
                     .service(
                         web::scope("/admin")
                             .wrap(AdminOnly)
-                            .wrap(auth)
+                            .wrap(auth.clone())
                             .route("/create", web::post().to(handlers::create_admin)),
+                    )
+                    .service(
+                        web::scope("/ingredients")
+                            .wrap(auth.clone())
+                            // Routes accessibles à tous les utilisateurs authentifiés
+                            .route("", web::get().to(handlers::get_all_ingredients))
+                            .route("/{id}", web::get().to(handlers::get_ingredient))
+                            .route("", web::post().to(handlers::create_ingredient))
+                            // Routes réservées aux administrateurs
+                            .service(
+                                web::scope("")
+                                    .wrap(AdminOnly)
+                                    .route("/{id}", web::put().to(handlers::update_ingredient))
+                                    .route("/{id}", web::delete().to(handlers::delete_ingredient)),
+                            ),
                     ),
             )
     })

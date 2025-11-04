@@ -25,7 +25,7 @@ pub async fn get_all_users(
     pool: web::Data<MySqlPool>,
     query: web::Query<PaginationParams>,
 ) -> HttpResponse {
-    let mut params = query.into_inner();
+    let params = query.into_inner();
 
     let user_repo = UserRepository::new(pool.get_ref().clone());
 

@@ -7,12 +7,9 @@ USE food_advisor_db;
 
 -- Additional indexes for Users table
 CREATE INDEX idx_users_country_city ON users(country, city);
-CREATE INDEX idx_users_birth_date ON users(birth_date);
 CREATE INDEX idx_users_created_at ON users(created_at);
 CREATE INDEX idx_users_last_name_first_name ON users(last_name, first_name);
 
--- Composite index for user authentication
-CREATE UNIQUE INDEX idx_users_email_password ON users(email, password_hash);
 
 -- Additional indexes for Recipes table
 CREATE INDEX idx_recipes_created_at ON recipes(created_at);

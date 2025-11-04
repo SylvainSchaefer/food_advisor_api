@@ -15,20 +15,44 @@ pub enum MeasurementUnit {
     Pieces,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Ingredient {
     pub ingredient_id: u32,
     pub name: String,
-    pub carbohydrates: Option<f64>,
-    pub proteins: Option<f64>,
-    pub fats: Option<f64>,
-    pub fibers: Option<f64>,
-    pub calories: Option<f64>,
-    pub price: Option<f64>,
-    pub weight: Option<f64>,
-    pub measurement_unit: MeasurementUnit,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    pub carbohydrates: rust_decimal::Decimal,
+    pub proteins: rust_decimal::Decimal,
+    pub fats: rust_decimal::Decimal,
+    pub fibers: rust_decimal::Decimal,
+    pub calories: rust_decimal::Decimal,
+    pub price: rust_decimal::Decimal,
+    pub weight: rust_decimal::Decimal,
+    pub measurement_unit: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateIngredientRequest {
+    pub name: String,
+    pub carbohydrates: rust_decimal::Decimal,
+    pub proteins: rust_decimal::Decimal,
+    pub fats: rust_decimal::Decimal,
+    pub fibers: rust_decimal::Decimal,
+    pub calories: rust_decimal::Decimal,
+    pub price: rust_decimal::Decimal,
+    pub weight: rust_decimal::Decimal,
+    pub measurement_unit: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateIngredientRequest {
+    pub name: String,
+    pub carbohydrates: rust_decimal::Decimal,
+    pub proteins: rust_decimal::Decimal,
+    pub fats: rust_decimal::Decimal,
+    pub fibers: rust_decimal::Decimal,
+    pub calories: rust_decimal::Decimal,
+    pub price: rust_decimal::Decimal,
+    pub weight: rust_decimal::Decimal,
+    pub measurement_unit: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
