@@ -349,3 +349,6 @@ BEGIN
         COMMIT;
     END IF;
 END$$
+
+
+DELIMITER ;

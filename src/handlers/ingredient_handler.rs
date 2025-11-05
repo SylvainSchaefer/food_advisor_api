@@ -1,6 +1,6 @@
 use crate::models::{
-    CreateIngredientRequest, Ingredient, PaginatedResponse, PaginationInfo, PaginationParams,
-    TokenClaims, UpdateIngredientRequest,
+    CreateIngredientRequest, PaginatedResponse, PaginationInfo, PaginationParams, TokenClaims,
+    UpdateIngredientRequest,
 };
 use crate::repositories::IngredientRepository;
 use actix_web::{HttpResponse, web};

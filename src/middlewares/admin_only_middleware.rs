@@ -50,8 +50,6 @@ where
         let claims = extensions.get::<crate::models::TokenClaims>().cloned();
         drop(extensions); // Libérer le borrow
 
-        log::info!("Admin verif : {:?}", claims);
-
         // Vérifier si l'utilisateur est admin
         match claims {
             Some(claims) if claims.is_admin() => {

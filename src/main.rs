@@ -136,6 +136,25 @@ async fn main() -> std::io::Result<()> {
                                     .route("/{id}", web::put().to(handlers::update_ingredient))
                                     .route("/{id}", web::delete().to(handlers::delete_ingredient)),
                             ),
+                    )
+                    .service(
+                        web::scope("/recipes")
+                            .wrap(auth.clone())
+                            .route("/my-recipes", web::get().to(handlers::get_user_recipes))
+                            .route("", web::get().to(handlers::get_all_recipes))
+                            .route("/{id}", web::get().to(handlers::get_recipe))
+                            .route("", web::post().to(handlers::create_recipe))
+                            .route("/{id}", web::put().to(handlers::update_recipe))
+                            .route("/{id}", web::delete().to(handlers::delete_recipe))
+                            .route(
+                                "/{id}/ingredients",
+                                web::post().to(handlers::add_recipe_ingredient),
+                            )
+                            .route(
+                                "/{recipe_id}/ingredients/{ingredient_id}",
+                                web::delete().to(handlers::remove_recipe_ingredient),
+                            )
+                            .route("/{id}/complete", web::post().to(handlers::complete_recipe)),
                     ),
             )
     })
