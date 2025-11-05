@@ -351,4 +351,169 @@ BEGIN
 END$$
 
 
+
+-- Récupérer l'image d'un ingrédient
+DROP PROCEDURE IF EXISTS sp_get_ingredient_image$$
+CREATE PROCEDURE sp_get_ingredient_image(
+    IN p_ingredient_id INT UNSIGNED
+)
+BEGIN
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+            CALL sp_log_error(
+                'SQL_EXCEPTION',
+                COALESCE(v_sql_error, 'Unknown error in sp_get_ingredient_image'),
+                JSON_OBJECT(
+                    'sql_state', v_sql_state,
+                    'mysql_errno', v_mysql_errno,
+                    'operation', 'GET_INGREDIENT_IMAGE',
+                    'ingredient_id', p_ingredient_id
+                ),
+                'sp_get_ingredient_image',
+                NULL
+            );
+        END;
+        RESIGNAL;
+    END;
+    
+    -- Récupérer l'image primaire de l'ingrédient
+    SELECT 
+        i.image_id,
+        i.entity_type,
+        i.entity_id,
+        i.image_data,
+        i.image_name,
+        i.image_type,
+        i.image_size,
+        i.width,
+        i.height,
+        i.is_primary,
+        i.alt_text,
+        i.uploaded_by_user_id,
+        i.created_at,
+        i.updated_at
+    FROM images i
+    WHERE i.entity_type = 'ingredient'
+        AND i.entity_id = p_ingredient_id
+        AND i.is_primary = TRUE
+    LIMIT 1;
+END$$
+
+
+
+DROP PROCEDURE IF EXISTS sp_add_ingredient_image$$
+CREATE PROCEDURE sp_add_ingredient_image(
+    IN p_ingredient_id INT UNSIGNED,
+    IN p_image_data MEDIUMBLOB,
+    IN p_image_name VARCHAR(255),
+    IN p_image_type VARCHAR(50),
+    IN p_image_size INT UNSIGNED,
+    IN p_width INT UNSIGNED,
+    IN p_height INT UNSIGNED,
+    IN p_is_primary BOOLEAN,
+    IN p_alt_text VARCHAR(500),
+    IN p_uploaded_by_user_id INT UNSIGNED,
+    OUT p_image_id INT UNSIGNED,
+    OUT p_error_msg VARCHAR(500)
+)
+BEGIN
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    DECLARE v_ingredient_exists INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        SET p_error_msg = COALESCE(v_sql_error, 'Unknown error in sp_add_ingredient_image');
+        SET p_image_id = NULL;
+        
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+            CALL sp_log_error(
+                'SQL_EXCEPTION',
+                p_error_msg,
+                JSON_OBJECT(
+                    'sql_state', v_sql_state,
+                    'mysql_errno', v_mysql_errno,
+                    'operation', 'ADD_INGREDIENT_IMAGE',
+                    'ingredient_id', p_ingredient_id,
+                    'user_id', p_uploaded_by_user_id
+                ),
+                'sp_add_ingredient_image',
+                p_uploaded_by_user_id
+            );
+        END;
+        ROLLBACK;
+    END;
+    
+    START TRANSACTION;
+    
+    -- Vérifier que l'ingrédient existe
+    SELECT COUNT(*) INTO v_ingredient_exists
+    FROM ingredients
+    WHERE ingredient_id = p_ingredient_id;
+    
+    IF v_ingredient_exists = 0 THEN
+        SET p_error_msg = 'Ingredient not found';
+        SET p_image_id = NULL;
+        ROLLBACK;
+    ELSE
+        -- Si c'est une image primaire, retirer le statut primaire des autres images
+        IF p_is_primary = TRUE THEN
+            UPDATE images
+            SET is_primary = FALSE
+            WHERE entity_type = 'ingredient'
+                AND entity_id = p_ingredient_id;
+        END IF;
+        
+        -- Insérer la nouvelle image
+        INSERT INTO images (
+            entity_type,
+            entity_id,
+            image_data,
+            image_name,
+            image_type,
+            image_size,
+            width,
+            height,
+            is_primary,
+            alt_text,
+            uploaded_by_user_id
+        ) VALUES (
+            'ingredient',
+            p_ingredient_id,
+            p_image_data,
+            p_image_name,
+            p_image_type,
+            p_image_size,
+            p_width,
+            p_height,
+            p_is_primary,
+            p_alt_text,
+            p_uploaded_by_user_id
+        );
+        
+        SET p_image_id = LAST_INSERT_ID();
+        SET p_error_msg = NULL;
+        
+        COMMIT;
+    END IF;
+END$$
+
 DELIMITER ;

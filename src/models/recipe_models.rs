@@ -46,7 +46,6 @@ pub struct Recipe {
     pub description: Option<String>,
     pub servings: u32,
     pub difficulty: String,
-    pub image_url: Option<String>,
     pub author_user_id: u32,
     pub is_published: bool,
     pub created_at: NaiveDateTime,
@@ -87,7 +86,6 @@ pub struct CreateRecipeRequest {
     pub description: Option<String>,
     pub servings: u32,
     pub difficulty: String,
-    pub image_url: Option<String>,
     pub is_published: bool,
 }
 
@@ -97,7 +95,6 @@ pub struct UpdateRecipeRequest {
     pub description: Option<String>,
     pub servings: u32,
     pub difficulty: String,
-    pub image_url: Option<String>,
     pub is_published: bool,
 }
 

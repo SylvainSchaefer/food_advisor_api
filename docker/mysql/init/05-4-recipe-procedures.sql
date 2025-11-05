@@ -13,7 +13,6 @@ CREATE PROCEDURE sp_create_recipe(
     IN p_description TEXT,
     IN p_servings INT,
     IN p_difficulty VARCHAR(20),
-    IN p_image_url VARCHAR(500),
     IN p_author_user_id INT,
     IN p_is_published BOOLEAN,
     OUT p_recipe_id INT,
@@ -59,11 +58,9 @@ BEGIN
     START TRANSACTION;
     
     INSERT INTO recipes (
-        title, description, servings, difficulty, 
-        image_url, author_user_id, is_published
+        title, description, servings, difficulty, author_user_id, is_published
     ) VALUES (
-        p_title, p_description, p_servings, p_difficulty,
-        p_image_url, p_author_user_id, p_is_published
+        p_title, p_description, p_servings, p_difficulty, p_author_user_id, p_is_published
     );
     
     SET p_recipe_id = LAST_INSERT_ID();
@@ -293,7 +290,6 @@ BEGIN
         r.description,
         r.servings,
         r.difficulty,
-        r.image_url,
         r.author_user_id,
         r.is_published,
         r.created_at,
@@ -352,7 +348,6 @@ BEGIN
         r.description,
         r.servings,
         r.difficulty,
-        r.image_url,
         r.author_user_id,
         r.is_published,
         r.created_at,
@@ -439,7 +434,6 @@ BEGIN
         r.description,
         r.servings,
         r.difficulty,
-        r.image_url,
         r.author_user_id,
         r.is_published,
         r.created_at,
@@ -459,7 +453,6 @@ CREATE PROCEDURE sp_update_recipe(
     IN p_description TEXT,
     IN p_servings INT,
     IN p_difficulty VARCHAR(20),
-    IN p_image_url VARCHAR(500),
     IN p_is_published BOOLEAN,
     IN p_user_id INT,
     IN p_user_role VARCHAR(20),
@@ -535,7 +528,6 @@ BEGIN
             description = p_description,
             servings = p_servings,
             difficulty = p_difficulty,
-            image_url = p_image_url,
             is_published = p_is_published,
             updated_at = NOW()
         WHERE recipe_id = p_recipe_id;
@@ -706,5 +698,169 @@ BEGIN
         COMMIT;
     END IF;
 END$$
+
+
+-- Récupérer l'image d'une recette
+DROP PROCEDURE IF EXISTS sp_get_recipe_image$$
+CREATE PROCEDURE sp_get_recipe_image(
+    IN p_recipe_id INT UNSIGNED
+)
+BEGIN
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+            CALL sp_log_error(
+                'SQL_EXCEPTION',
+                COALESCE(v_sql_error, 'Unknown error in sp_get_recipe_image'),
+                JSON_OBJECT(
+                    'sql_state', v_sql_state,
+                    'mysql_errno', v_mysql_errno,
+                    'operation', 'GET_RECIPE_IMAGE',
+                    'recipe_id', p_recipe_id
+                ),
+                'sp_get_recipe_image',
+                NULL
+            );
+        END;
+        RESIGNAL;
+    END;
+    
+    -- Récupérer l'image primaire de la recette
+    SELECT 
+        i.image_id,
+        i.entity_type,
+        i.entity_id,
+        i.image_data,
+        i.image_name,
+        i.image_type,
+        i.image_size,
+        i.width,
+        i.height,
+        i.is_primary,
+        i.alt_text,
+        i.uploaded_by_user_id,
+        i.created_at,
+        i.updated_at
+    FROM images i
+    WHERE i.entity_type = 'recipe'
+        AND i.entity_id = p_recipe_id
+    LIMIT 1;
+END$$
+
+
+DROP PROCEDURE IF EXISTS sp_add_recipe_image$$
+CREATE PROCEDURE sp_add_recipe_image(
+    IN p_recipe_id INT UNSIGNED,
+    IN p_image_data MEDIUMBLOB,
+    IN p_image_name VARCHAR(255),
+    IN p_image_type VARCHAR(50),
+    IN p_image_size INT UNSIGNED,
+    IN p_width INT UNSIGNED,
+    IN p_height INT UNSIGNED,
+    IN p_is_primary BOOLEAN,
+    IN p_alt_text VARCHAR(500),
+    IN p_uploaded_by_user_id INT UNSIGNED,
+    OUT p_image_id INT UNSIGNED,
+    OUT p_error_msg VARCHAR(500)
+)
+BEGIN
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    DECLARE v_recipe_exists INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        SET p_error_msg = COALESCE(v_sql_error, 'Unknown error in sp_add_recipe_image');
+        SET p_image_id = NULL;
+        
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+            CALL sp_log_error(
+                'SQL_EXCEPTION',
+                p_error_msg,
+                JSON_OBJECT(
+                    'sql_state', v_sql_state,
+                    'mysql_errno', v_mysql_errno,
+                    'operation', 'ADD_RECIPE_IMAGE',
+                    'recipe_id', p_recipe_id,
+                    'user_id', p_uploaded_by_user_id
+                ),
+                'sp_add_recipe_image',
+                p_uploaded_by_user_id
+            );
+        END;
+        ROLLBACK;
+    END;
+    
+    START TRANSACTION;
+    
+    -- Vérifier que la recette existe
+    SELECT COUNT(*) INTO v_recipe_exists
+    FROM recipes
+    WHERE recipe_id = p_recipe_id;
+    
+    IF v_recipe_exists = 0 THEN
+        SET p_error_msg = 'Recipe not found';
+        SET p_image_id = NULL;
+        ROLLBACK;
+    ELSE
+        -- Si c'est une image primaire, retirer le statut primaire des autres images
+        IF p_is_primary = TRUE THEN
+            UPDATE images
+            SET is_primary = FALSE
+            WHERE entity_type = 'recipe'
+                AND entity_id = p_recipe_id;
+        END IF;
+        
+        -- Insérer la nouvelle image
+        INSERT INTO images (
+            entity_type,
+            entity_id,
+            image_data,
+            image_name,
+            image_type,
+            image_size,
+            width,
+            height,
+            is_primary,
+            alt_text,
+            uploaded_by_user_id
+        ) VALUES (
+            'recipe',
+            p_recipe_id,
+            p_image_data,
+            p_image_name,
+            p_image_type,
+            p_image_size,
+            p_width,
+            p_height,
+            p_is_primary,
+            p_alt_text,
+            p_uploaded_by_user_id
+        );
+        
+        SET p_image_id = LAST_INSERT_ID();
+        SET p_error_msg = NULL;
+        
+        COMMIT;
+    END IF;
+END$$
+
 
 DELIMITER ;

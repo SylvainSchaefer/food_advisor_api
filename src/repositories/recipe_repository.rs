@@ -13,8 +13,8 @@ impl RecipeRepository {
     }
 
     fn get_recipe(row: &MySqlRow) -> Recipe {
-        let created_at: chrono::DateTime<Utc> = row.get(8);
-        let updated_at: chrono::DateTime<Utc> = row.get(9);
+        let created_at: chrono::DateTime<Utc> = row.get(7);
+        let updated_at: chrono::DateTime<Utc> = row.get(8);
 
         Recipe {
             recipe_id: row.get(0),
@@ -22,13 +22,12 @@ impl RecipeRepository {
             description: row.get(2),
             servings: row.get(3),
             difficulty: row.get(4),
-            image_url: row.get(5),
-            author_user_id: row.get(6),
-            is_published: row.get(7),
+            author_user_id: row.get(5),
+            is_published: row.get(6),
             created_at: created_at.naive_utc(),
             updated_at: updated_at.naive_utc(),
-            author_first_name: row.try_get(10).ok(),
-            author_last_name: row.try_get(11).ok(),
+            author_first_name: row.try_get(9).ok(),
+            author_last_name: row.try_get(10).ok(),
         }
     }
 
@@ -130,18 +129,16 @@ impl RecipeRepository {
         description: Option<&str>,
         servings: u32,
         difficulty: &str,
-        image_url: Option<&str>,
         author_user_id: u32,
         is_published: bool,
     ) -> Result<u32, Error> {
         let mut conn = self.pool.acquire().await?;
 
-        sqlx::query("CALL sp_create_recipe(?, ?, ?, ?, ?, ?, ?, @p_recipe_id, @p_error_message)")
+        sqlx::query("CALL sp_create_recipe(?, ?, ?, ?, ?, ?, @p_recipe_id, @p_error_message)")
             .bind(title)
             .bind(description)
             .bind(servings)
             .bind(difficulty)
-            .bind(image_url)
             .bind(author_user_id)
             .bind(is_published)
             .execute(&mut *conn)
@@ -170,20 +167,18 @@ impl RecipeRepository {
         description: Option<&str>,
         servings: u32,
         difficulty: &str,
-        image_url: Option<&str>,
         is_published: bool,
         user_id: u32,
         user_role: &str,
     ) -> Result<(), Error> {
         let mut conn = self.pool.acquire().await?;
 
-        sqlx::query("CALL sp_update_recipe(?, ?, ?, ?, ?, ?, ?, ?, ?, @p_error_message)")
+        sqlx::query("CALL sp_update_recipe(?, ?, ?, ?, ?, ?, ?, ?, @p_error_message)")
             .bind(recipe_id)
             .bind(title)
             .bind(description)
             .bind(servings)
             .bind(difficulty)
-            .bind(image_url)
             .bind(is_published)
             .bind(user_id)
             .bind(user_role)

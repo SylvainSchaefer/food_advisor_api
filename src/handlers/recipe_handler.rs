@@ -3,28 +3,9 @@ use crate::models::{
     PaginationInfo, PaginationParams, TokenClaims, UpdateRecipeRequest,
 };
 use crate::repositories::RecipeRepository;
+use crate::utils::auth::extract_user_info;
 use actix_web::{HttpResponse, web};
 use sqlx::MySqlPool;
-
-// Helper pour extraire user_id et role des claims
-fn extract_user_info(claims: &TokenClaims) -> Result<(u32, String), HttpResponse> {
-    let user_id = match claims.sub.parse::<u32>() {
-        Ok(id) => id,
-        Err(_) => {
-            log::error!("Invalid user_id in claims");
-            return Err(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Invalid user identifier"
-            })));
-        }
-    };
-
-    let user_role = match &claims.role {
-        crate::models::Role::Administrator => "Administrator".to_string(),
-        crate::models::Role::Regular => "Regular".to_string(),
-    };
-
-    Ok((user_id, user_role))
-}
 
 // =====================================================
 // HANDLERS - Recettes publiques
@@ -106,7 +87,6 @@ pub async fn create_recipe(
             req.description.as_deref(),
             req.servings,
             &req.difficulty,
-            req.image_url.as_deref(),
             user_id,
             req.is_published,
         )
@@ -198,7 +178,6 @@ pub async fn update_recipe(
             req.description.as_deref(),
             req.servings,
             &req.difficulty,
-            req.image_url.as_deref(),
             req.is_published,
             user_id,
             &user_role,

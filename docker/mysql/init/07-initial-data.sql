@@ -250,22 +250,22 @@ INSERT INTO user_ingredient_category_preferences (user_id, category_id, preferen
 -- RECIPES DATA
 -- =====================================================
 
-INSERT INTO recipes (recipe_id, title, description, servings, is_published, difficulty, image_url, author_user_id) VALUES
-(1, 'Classic Spaghetti Carbonara', 'Traditional Italian pasta with eggs, cheese, and bacon', 4, TRUE, 'Medium', 'https://images.example.com/carbonara.jpg', 5),
-(2, 'Grilled Chicken Salad', 'Healthy salad with grilled chicken breast and fresh vegetables', 2, TRUE, 'Easy', 'https://images.example.com/chicken-salad.jpg', 1),
-(3, 'Vegetable Stir-Fry', 'Quick and healthy Asian-inspired vegetable dish', 4, TRUE, 'Easy', 'https://images.example.com/stir-fry.jpg', 2),
-(4, 'Beef Tacos', 'Mexican-style tacos with seasoned ground beef', 6, TRUE, 'Medium', 'https://images.example.com/tacos.jpg', 3),
-(5, 'Salmon Teriyaki', 'Japanese-style glazed salmon with vegetables', 2, TRUE, 'Medium', 'https://images.example.com/salmon.jpg', 4),
-(6, 'French Onion Soup', 'Classic French soup with caramelized onions and cheese', 4, TRUE, 'Hard', 'https://images.example.com/onion-soup.jpg', 6),
-(7, 'Margherita Pizza', 'Traditional Italian pizza with tomato, mozzarella, and basil', 4, TRUE, 'Medium', 'https://images.example.com/pizza.jpg', 5),
-(8, 'Thai Green Curry', 'Spicy Thai curry with vegetables and coconut milk', 4, TRUE, 'Hard', 'https://images.example.com/curry.jpg', 8),
-(9, 'Greek Salad', 'Fresh Mediterranean salad with feta cheese and olives', 4, TRUE, 'Easy', 'https://images.example.com/greek-salad.jpg', 1),
-(10, 'Chicken Tikka Masala', 'Indian curry with marinated chicken in spiced sauce', 4, TRUE, 'Hard', 'https://images.example.com/tikka.jpg', 7),
-(11, 'Mushroom Risotto', 'Creamy Italian rice dish with mushrooms', 4, TRUE, 'Hard', 'https://images.example.com/risotto.jpg', 5),
-(12, 'Fish and Chips', 'British classic with battered cod and fries', 2, TRUE, 'Medium', 'https://images.example.com/fish-chips.jpg', 4),
-(13, 'Ratatouille', 'French vegetable stew from Provence', 6, TRUE, 'Medium', 'https://images.example.com/ratatouille.jpg', 6),
-(14, 'Beef Bourguignon', 'French beef stew with red wine', 6, FALSE, 'Expert', 'https://images.example.com/bourguignon.jpg', 9),
-(15, 'Pad Thai', 'Thai stir-fried noodles with shrimp', 2, TRUE, 'Medium', 'https://images.example.com/pad-thai.jpg', 8);
+INSERT INTO recipes (recipe_id, title, description, servings, is_published, difficulty, author_user_id) VALUES
+(1, 'Classic Spaghetti Carbonara', 'Traditional Italian pasta with eggs, cheese, and bacon', 4, TRUE, 'Medium', 5),
+(2, 'Grilled Chicken Salad', 'Healthy salad with grilled chicken breast and fresh vegetables', 2, TRUE, 'Easy', 1),
+(3, 'Vegetable Stir-Fry', 'Quick and healthy Asian-inspired vegetable dish', 4, TRUE, 'Easy', 2),
+(4, 'Beef Tacos', 'Mexican-style tacos with seasoned ground beef', 6, TRUE, 'Medium', 3),
+(5, 'Salmon Teriyaki', 'Japanese-style glazed salmon with vegetables', 2, TRUE, 'Medium', 4),
+(6, 'French Onion Soup', 'Classic French soup with caramelized onions and cheese', 4, TRUE, 'Hard', 6),
+(7, 'Margherita Pizza', 'Traditional Italian pizza with tomato, mozzarella, and basil', 4, TRUE, 'Medium', 5),
+(8, 'Thai Green Curry', 'Spicy Thai curry with vegetables and coconut milk', 4, TRUE, 'Hard', 8),
+(9, 'Greek Salad', 'Fresh Mediterranean salad with feta cheese and olives', 4, TRUE, 'Easy', 1),
+(10, 'Chicken Tikka Masala', 'Indian curry with marinated chicken in spiced sauce', 4, TRUE, 'Hard', 7),
+(11, 'Mushroom Risotto', 'Creamy Italian rice dish with mushrooms', 4, TRUE, 'Hard', 5),
+(12, 'Fish and Chips', 'British classic with battered cod and fries', 2, TRUE, 'Medium', 4),
+(13, 'Ratatouille', 'French vegetable stew from Provence', 6, TRUE, 'Medium', 6),
+(14, 'Beef Bourguignon', 'French beef stew with red wine', 6, FALSE, 'Expert', 9),
+(15, 'Pad Thai', 'Thai stir-fried noodles with shrimp', 2, TRUE, 'Medium', 8);
 
 -- =====================================================
 -- RECIPE INGREDIENTS DATA

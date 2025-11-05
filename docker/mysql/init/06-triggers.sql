@@ -142,7 +142,6 @@ BEGIN
             'servings', OLD.servings,
             'difficulty', OLD.difficulty,
             'is_published', OLD.is_published,
-            'image_url', OLD.image_url,
             'author_user_id', OLD.author_user_id,
             'created_at', OLD.created_at,
             'updated_at', OLD.updated_at

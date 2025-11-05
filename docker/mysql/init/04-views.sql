@@ -67,7 +67,6 @@ SELECT
     r.description,
     r.servings,
     r.difficulty,
-    r.image_url,
     r.created_at,
     r.updated_at,
     u.user_id AS author_id,

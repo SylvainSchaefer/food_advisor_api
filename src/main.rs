@@ -127,6 +127,11 @@ async fn main() -> std::io::Result<()> {
                             .wrap(auth.clone())
                             // Routes accessibles à tous les utilisateurs authentifiés
                             .route("", web::get().to(handlers::get_all_ingredients))
+                            .route("/{id}/image", web::get().to(handlers::get_ingredient_image))
+                            .route(
+                                "/{id}/image",
+                                web::post().to(handlers::add_ingredient_image),
+                            )
                             .route("/{id}", web::get().to(handlers::get_ingredient))
                             .route("", web::post().to(handlers::create_ingredient))
                             // Routes réservées aux administrateurs
@@ -142,6 +147,8 @@ async fn main() -> std::io::Result<()> {
                             .wrap(auth.clone())
                             .route("/my-recipes", web::get().to(handlers::get_user_recipes))
                             .route("", web::get().to(handlers::get_all_recipes))
+                            .route("/{id}/image", web::get().to(handlers::get_recipe_image))
+                            .route("/{id}/image", web::post().to(handlers::add_recipe_image))
                             .route("/{id}", web::get().to(handlers::get_recipe))
                             .route("", web::post().to(handlers::create_recipe))
                             .route("/{id}", web::put().to(handlers::update_recipe))

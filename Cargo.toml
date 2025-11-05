@@ -20,7 +20,9 @@ actix-web-httpauth = "0.8.2"
 env_logger = "0.11.8"
 log = "0.4"
 rust_decimal = "1.33"
-futures-util = "0.3.31"
+actix-multipart = "0.7"
+futures-util = "0.3"
+image = "0.25"
 
 
 [profile.dev]

@@ -1,5 +1,5 @@
 use crate::models::{Role, TokenClaims, User};
-use actix_web::{Error, HttpMessage, dev::ServiceRequest};
+use actix_web::{Error, HttpMessage, HttpResponse, dev::ServiceRequest};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::Utc;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
@@ -65,4 +65,24 @@ pub async fn validator(
         }
         Err(_) => Err((actix_web::error::ErrorUnauthorized("Invalid token"), req)),
     }
+}
+
+// Helper pour extraire user_id et role des claims
+pub fn extract_user_info(claims: &TokenClaims) -> Result<(u32, String), HttpResponse> {
+    let user_id = match claims.sub.parse::<u32>() {
+        Ok(id) => id,
+        Err(_) => {
+            log::error!("Invalid user_id in claims");
+            return Err(HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Invalid user identifier"
+            })));
+        }
+    };
+
+    let user_role = match &claims.role {
+        crate::models::Role::Administrator => "Administrator".to_string(),
+        crate::models::Role::Regular => "Regular".to_string(),
+    };
+
+    Ok((user_id, user_role))
 }

@@ -22,6 +22,8 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_email (email),
     INDEX idx_role (role),
+    INDEX idx_first_name(first_name),
+    INDEX idx_last_name(last_name),
     INDEX idx_active (is_active)
 ) ENGINE=InnoDB;
 
@@ -31,7 +33,8 @@ CREATE TABLE allergies (
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_name(name)
 ) ENGINE=InnoDB;
 
 -- User allergies table
@@ -78,7 +81,8 @@ CREATE TABLE ingredient_categories (
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_name (name)
 ) ENGINE=InnoDB;
 
 -- Ingredient category assignments table
@@ -138,7 +142,6 @@ CREATE TABLE recipes (
     servings INT UNSIGNED DEFAULT 4,
     is_published BOOLEAN DEFAULT FALSE,
     difficulty ENUM('Easy', 'Medium', 'Hard', 'Expert') DEFAULT 'Medium',
-    image_url VARCHAR(500),
     author_user_id INT UNSIGNED NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -241,7 +244,6 @@ CREATE TABLE history_recipes (
     servings INT UNSIGNED,
     is_published BOOLEAN,
     difficulty ENUM('Easy', 'Medium', 'Hard', 'Expert'),
-    image_url VARCHAR(500),
     author_user_id INT UNSIGNED,
     change_type ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL,
     changed_by_user_id INT UNSIGNED,
@@ -301,10 +303,8 @@ CREATE TABLE user_sessions (
     logout_time TIMESTAMP NULL,
     last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     INDEX idx_session_token (session_token),
-    INDEX idx_user_id (user_id),
-    INDEX idx_is_active (is_active)
+    INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB;
 
 -- Performance monitoring table
@@ -316,7 +316,26 @@ CREATE TABLE performance_logs (
     user_id INT UNSIGNED,
     parameters JSON,
     logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_procedure (procedure_name),
-    INDEX idx_logged_at (logged_at),
-    INDEX idx_execution_time (execution_time_ms)
+    INDEX idx_procedure (procedure_name)
+) ENGINE=InnoDB;
+
+
+-- Images table for recipes and ingredients
+CREATE TABLE images (
+    image_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    entity_type ENUM('recipe', 'ingredient') NOT NULL,
+    entity_id INT UNSIGNED NOT NULL,
+    image_data MEDIUMBLOB NOT NULL COMMENT 'Stores binary image data',
+    image_name VARCHAR(255) NOT NULL,
+    image_type VARCHAR(50) NOT NULL COMMENT 'MIME type (e.g., image/jpeg, image/png)',
+    image_size INT UNSIGNED NOT NULL COMMENT 'Size in bytes',
+    width INT UNSIGNED COMMENT 'Image width in pixels',
+    height INT UNSIGNED COMMENT 'Image height in pixels',
+    is_primary BOOLEAN DEFAULT FALSE COMMENT 'Primary image for the entity',
+    alt_text VARCHAR(500) COMMENT 'Alternative text for accessibility',
+    uploaded_by_user_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (uploaded_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_entity_id (entity_id)
 ) ENGINE=InnoDB;
