@@ -7,8 +7,7 @@ use sqlx::MySqlPool;
 
 const MAX_IMAGE_SIZE: usize = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_MIME_TYPES: &[&str] = &["image/jpeg", "image/png", "image/gif", "image/webp"];
-
-/// Ajouter une image à une recette
+/// Ajouter une image à une recette (auteur ou administrateur)
 pub async fn add_recipe_image(
     pool: web::Data<MySqlPool>,
     path: web::Path<u32>,
@@ -18,7 +17,7 @@ pub async fn add_recipe_image(
     let recipe_id = path.into_inner();
 
     // Extraire l'utilisateur du JWT
-    let (user_id, _) = match extract_user_info(&claims) {
+    let (user_id, user_role) = match extract_user_info(&claims) {
         Ok(info) => info,
         Err(response) => return response,
     };
@@ -152,7 +151,7 @@ pub async fn add_recipe_image(
     match repo
         .add_recipe_image(
             recipe_id, image_data, image_name, image_type, image_size, width, height, is_primary,
-            alt_text, user_id,
+            alt_text, user_id, &user_role,
         )
         .await
     {
@@ -163,15 +162,22 @@ pub async fn add_recipe_image(
         })),
         Err(e) => {
             log::error!("Failed to add recipe image: {:?}", e);
-            HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Failed to add recipe image",
-                "message": e.to_string()
-            }))
+
+            let error_msg = format!("{:?}", e);
+            if error_msg.contains("not found") || error_msg.contains("not authorized") {
+                HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "Recipe not found or you are not authorized"
+                }))
+            } else {
+                HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to add recipe image"
+                }))
+            }
         }
     }
 }
 
-/// Ajouter une image à un ingrédient
+/// Ajouter une image à un ingrédient (seuls les administrateurs)
 pub async fn add_ingredient_image(
     pool: web::Data<MySqlPool>,
     path: web::Path<u32>,
@@ -181,7 +187,7 @@ pub async fn add_ingredient_image(
     let ingredient_id = path.into_inner();
 
     // Extraire l'utilisateur du JWT
-    let (user_id, _) = match extract_user_info(&claims) {
+    let (user_id, user_role) = match extract_user_info(&claims) {
         Ok(info) => info,
         Err(response) => return response,
     };
@@ -192,7 +198,7 @@ pub async fn add_ingredient_image(
     let mut alt_text: Option<String> = None;
     let mut is_primary = false;
 
-    // Traiter le multipart
+    // Traiter le multipart (même code que pour les recettes)
     while let Some(item) = payload.next().await {
         let mut field = match item {
             Ok(f) => f,
@@ -205,7 +211,6 @@ pub async fn add_ingredient_image(
             }
         };
 
-        // Extraire le nom du champ
         let field_name = match field.content_disposition() {
             Some(cd) => cd.get_name().unwrap_or(""),
             None => "",
@@ -213,7 +218,6 @@ pub async fn add_ingredient_image(
 
         match field_name {
             "image" => {
-                // Extraire le nom du fichier
                 image_name = match field.content_disposition() {
                     Some(cd) => cd.get_filename().unwrap_or("image.jpg").to_string(),
                     None => "image.jpg".to_string(),
@@ -224,7 +228,6 @@ pub async fn add_ingredient_image(
                     .map(|ct| ct.to_string())
                     .unwrap_or_else(|| "image/jpeg".to_string());
 
-                // Vérifier le type MIME
                 if !ALLOWED_MIME_TYPES.contains(&image_type.as_str()) {
                     return HttpResponse::BadRequest().json(serde_json::json!({
                         "error": "Invalid image type",
@@ -232,7 +235,6 @@ pub async fn add_ingredient_image(
                     }));
                 }
 
-                // Lire les données de l'image
                 while let Some(chunk) = field.next().await {
                     let data = match chunk {
                         Ok(d) => d,
@@ -246,7 +248,6 @@ pub async fn add_ingredient_image(
                     };
                     image_data.extend_from_slice(&data);
 
-                    // Vérifier la taille
                     if image_data.len() > MAX_IMAGE_SIZE {
                         return HttpResponse::PayloadTooLarge().json(serde_json::json!({
                             "error": "Image too large",
@@ -285,10 +286,7 @@ pub async fn add_ingredient_image(
                 }
                 is_primary = text.trim() == "true" || text.trim() == "1";
             }
-            _ => {
-                // Ignorer les autres champs
-                while let Some(_) = field.next().await {}
-            }
+            _ => while let Some(_) = field.next().await {},
         }
     }
 
@@ -299,7 +297,6 @@ pub async fn add_ingredient_image(
         }));
     }
 
-    // Obtenir les dimensions de l'image (optionnel)
     let (width, height) = match image::load_from_memory(&image_data) {
         Ok(img) => (Some(img.width()), Some(img.height())),
         Err(e) => {
@@ -324,6 +321,7 @@ pub async fn add_ingredient_image(
             is_primary,
             alt_text,
             user_id,
+            &user_role,
         )
         .await
     {
@@ -334,14 +332,24 @@ pub async fn add_ingredient_image(
         })),
         Err(e) => {
             log::error!("Failed to add ingredient image: {:?}", e);
-            HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Failed to add ingredient image",
-                "message": e.to_string()
-            }))
+
+            let error_msg = format!("{:?}", e);
+            if error_msg.contains("Only administrators") || error_msg.contains("not authorized") {
+                HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "Only administrators can add ingredient images"
+                }))
+            } else if error_msg.contains("not found") {
+                HttpResponse::NotFound().json(serde_json::json!({
+                    "error": "Ingredient not found"
+                }))
+            } else {
+                HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to add ingredient image"
+                }))
+            }
         }
     }
 }
-
 /// Récupérer l'image d'une recette (pas besoin de claims pour la lecture)
 pub async fn get_recipe_image(pool: web::Data<MySqlPool>, path: web::Path<u32>) -> HttpResponse {
     let recipe_id = path.into_inner();

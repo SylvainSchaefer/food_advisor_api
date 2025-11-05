@@ -758,6 +758,8 @@ BEGIN
 END$$
 
 
+
+-- Ajouter une image pour une recette (auteur ou administrateur)
 DROP PROCEDURE IF EXISTS sp_add_recipe_image$$
 CREATE PROCEDURE sp_add_recipe_image(
     IN p_recipe_id INT UNSIGNED,
@@ -770,6 +772,7 @@ CREATE PROCEDURE sp_add_recipe_image(
     IN p_is_primary BOOLEAN,
     IN p_alt_text VARCHAR(500),
     IN p_uploaded_by_user_id INT UNSIGNED,
+    IN p_user_role VARCHAR(20),
     OUT p_image_id INT UNSIGNED,
     OUT p_error_msg VARCHAR(500)
 )
@@ -777,10 +780,11 @@ BEGIN
     DECLARE v_sql_error TEXT;
     DECLARE v_sql_state CHAR(5) DEFAULT '00000';
     DECLARE v_mysql_errno INT DEFAULT 0;
-    DECLARE v_recipe_exists INT DEFAULT 0;
     
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
+        ROLLBACK;
+        
         GET DIAGNOSTICS CONDITION 1
             v_sql_state = RETURNED_SQLSTATE,
             v_mysql_errno = MYSQL_ERRNO,
@@ -805,19 +809,35 @@ BEGIN
                 p_uploaded_by_user_id
             );
         END;
-        ROLLBACK;
     END;
     
     START TRANSACTION;
     
-    -- Vérifier que la recette existe
-    SELECT COUNT(*) INTO v_recipe_exists
-    FROM recipes
-    WHERE recipe_id = p_recipe_id;
-    
-    IF v_recipe_exists = 0 THEN
-        SET p_error_msg = 'Recipe not found';
+    -- Vérifier si la recette existe et si l'utilisateur est autorisé
+    IF NOT EXISTS (
+        SELECT 1 FROM recipes 
+        WHERE recipe_id = p_recipe_id 
+        AND (author_user_id = p_uploaded_by_user_id OR p_user_role = 'Administrator')
+    ) THEN
+        SET p_error_msg = 'Recipe not found or you are not authorized';
         SET p_image_id = NULL;
+        
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+            CALL sp_log_error(
+                'RECIPE_AUTHORIZATION_ERROR',
+                p_error_msg,
+                JSON_OBJECT(
+                    'recipe_id', p_recipe_id,
+                    'user_id', p_uploaded_by_user_id,
+                    'user_role', p_user_role,
+                    'operation', 'ADD_RECIPE_IMAGE'
+                ),
+                'sp_add_recipe_image',
+                p_uploaded_by_user_id
+            );
+        END;
+        
         ROLLBACK;
     ELSE
         -- Si c'est une image primaire, retirer le statut primaire des autres images

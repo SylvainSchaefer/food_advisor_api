@@ -412,6 +412,8 @@ END$$
 
 
 
+
+-- Ajouter une image pour un ingrédient (seuls les administrateurs)
 DROP PROCEDURE IF EXISTS sp_add_ingredient_image$$
 CREATE PROCEDURE sp_add_ingredient_image(
     IN p_ingredient_id INT UNSIGNED,
@@ -424,6 +426,7 @@ CREATE PROCEDURE sp_add_ingredient_image(
     IN p_is_primary BOOLEAN,
     IN p_alt_text VARCHAR(500),
     IN p_uploaded_by_user_id INT UNSIGNED,
+    IN p_user_role VARCHAR(20),
     OUT p_image_id INT UNSIGNED,
     OUT p_error_msg VARCHAR(500)
 )
@@ -431,10 +434,11 @@ BEGIN
     DECLARE v_sql_error TEXT;
     DECLARE v_sql_state CHAR(5) DEFAULT '00000';
     DECLARE v_mysql_errno INT DEFAULT 0;
-    DECLARE v_ingredient_exists INT DEFAULT 0;
     
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
+        ROLLBACK;
+        
         GET DIAGNOSTICS CONDITION 1
             v_sql_state = RETURNED_SQLSTATE,
             v_mysql_errno = MYSQL_ERRNO,
@@ -459,60 +463,79 @@ BEGIN
                 p_uploaded_by_user_id
             );
         END;
-        ROLLBACK;
     END;
     
     START TRANSACTION;
     
-    -- Vérifier que l'ingrédient existe
-    SELECT COUNT(*) INTO v_ingredient_exists
-    FROM ingredients
-    WHERE ingredient_id = p_ingredient_id;
-    
-    IF v_ingredient_exists = 0 THEN
-        SET p_error_msg = 'Ingredient not found';
+    -- Vérifier que l'utilisateur est administrateur
+    IF p_user_role != 'Administrator' THEN
+        SET p_error_msg = 'Only administrators can add ingredient images';
         SET p_image_id = NULL;
+        
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+            CALL sp_log_error(
+                'INGREDIENT_AUTHORIZATION_ERROR',
+                p_error_msg,
+                JSON_OBJECT(
+                    'ingredient_id', p_ingredient_id,
+                    'user_id', p_uploaded_by_user_id,
+                    'user_role', p_user_role,
+                    'operation', 'ADD_INGREDIENT_IMAGE'
+                ),
+                'sp_add_ingredient_image',
+                p_uploaded_by_user_id
+            );
+        END;
+        
         ROLLBACK;
     ELSE
-        -- Si c'est une image primaire, retirer le statut primaire des autres images
-        IF p_is_primary = TRUE THEN
-            UPDATE images
-            SET is_primary = FALSE
-            WHERE entity_type = 'ingredient'
-                AND entity_id = p_ingredient_id;
+        -- Vérifier que l'ingrédient existe
+        IF NOT EXISTS (SELECT 1 FROM ingredients WHERE ingredient_id = p_ingredient_id) THEN
+            SET p_error_msg = 'Ingredient not found';
+            SET p_image_id = NULL;
+            ROLLBACK;
+        ELSE
+            -- Si c'est une image primaire, retirer le statut primaire des autres images
+            IF p_is_primary = TRUE THEN
+                UPDATE images
+                SET is_primary = FALSE
+                WHERE entity_type = 'ingredient'
+                    AND entity_id = p_ingredient_id;
+            END IF;
+            
+            -- Insérer la nouvelle image
+            INSERT INTO images (
+                entity_type,
+                entity_id,
+                image_data,
+                image_name,
+                image_type,
+                image_size,
+                width,
+                height,
+                is_primary,
+                alt_text,
+                uploaded_by_user_id
+            ) VALUES (
+                'ingredient',
+                p_ingredient_id,
+                p_image_data,
+                p_image_name,
+                p_image_type,
+                p_image_size,
+                p_width,
+                p_height,
+                p_is_primary,
+                p_alt_text,
+                p_uploaded_by_user_id
+            );
+            
+            SET p_image_id = LAST_INSERT_ID();
+            SET p_error_msg = NULL;
+            
+            COMMIT;
         END IF;
-        
-        -- Insérer la nouvelle image
-        INSERT INTO images (
-            entity_type,
-            entity_id,
-            image_data,
-            image_name,
-            image_type,
-            image_size,
-            width,
-            height,
-            is_primary,
-            alt_text,
-            uploaded_by_user_id
-        ) VALUES (
-            'ingredient',
-            p_ingredient_id,
-            p_image_data,
-            p_image_name,
-            p_image_type,
-            p_image_size,
-            p_width,
-            p_height,
-            p_is_primary,
-            p_alt_text,
-            p_uploaded_by_user_id
-        );
-        
-        SET p_image_id = LAST_INSERT_ID();
-        SET p_error_msg = NULL;
-        
-        COMMIT;
     END IF;
 END$$
 

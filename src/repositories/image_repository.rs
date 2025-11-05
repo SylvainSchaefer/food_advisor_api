@@ -1,4 +1,4 @@
-use crate::models::{EntityType, Image};
+use crate::models::{EntityType, Image, Role};
 use chrono::Utc;
 use sqlx::{Error, MySqlPool, Row, mysql::MySqlRow};
 
@@ -70,11 +70,12 @@ impl ImageRepository {
         is_primary: bool,
         alt_text: Option<String>,
         uploaded_by_user_id: u32,
+        user_role: &str,
     ) -> Result<u32, Error> {
         let mut conn = self.pool.acquire().await?;
 
         sqlx::query(
-            "CALL sp_add_recipe_image(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @image_id, @error_msg)",
+            "CALL sp_add_recipe_image(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @image_id, @error_msg)",
         )
         .bind(recipe_id)
         .bind(&image_data)
@@ -86,10 +87,11 @@ impl ImageRepository {
         .bind(is_primary)
         .bind(&alt_text)
         .bind(uploaded_by_user_id)
+        .bind(user_role)
         .execute(&mut *conn)
         .await?;
 
-        let result: (Option<u64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
+        let result: (Option<i64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
             .map(|row: MySqlRow| (row.get(0), row.get(1)))
             .fetch_one(&mut *conn)
             .await?;
@@ -116,11 +118,12 @@ impl ImageRepository {
         is_primary: bool,
         alt_text: Option<String>,
         uploaded_by_user_id: u32,
+        user_role: &str,
     ) -> Result<u32, Error> {
         let mut conn = self.pool.acquire().await?;
 
         sqlx::query(
-            "CALL sp_add_ingredient_image(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @image_id, @error_msg)",
+            "CALL sp_add_ingredient_image(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @image_id, @error_msg)",
         )
         .bind(ingredient_id)
         .bind(&image_data)
@@ -132,10 +135,11 @@ impl ImageRepository {
         .bind(is_primary)
         .bind(&alt_text)
         .bind(uploaded_by_user_id)
+        .bind(user_role)
         .execute(&mut *conn)
         .await?;
 
-        let result: (Option<u64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
+        let result: (Option<i64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
             .map(|row: MySqlRow| (row.get(0), row.get(1)))
             .fetch_one(&mut *conn)
             .await?;
