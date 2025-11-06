@@ -406,7 +406,7 @@ BEGIN
     FROM images i
     WHERE i.entity_type = 'ingredient'
         AND i.entity_id = p_ingredient_id
-        AND i.is_primary = TRUE
+    ORDER BY i.image_id DESC
     LIMIT 1;
 END$$
 

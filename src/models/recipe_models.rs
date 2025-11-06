@@ -1,40 +1,16 @@
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use validator::{Validate, ValidationError};
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "VARCHAR", rename_all = "PascalCase")]
-pub enum Difficulty {
-    Easy,
-    Medium,
-    Hard,
-    Expert,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum StepType {
-    Cooking,
-    Action,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct RecipeIngredient {
-    pub recipe_id: u32,
-    pub ingredient_id: u32,
-    pub quantity: f64,
-    pub is_optional: bool,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RecipeStep {
+    pub recipe_step_id: u32,
     pub recipe_id: u32,
     pub step_order: u32,
     pub description: String,
-    pub duration_minutes: Option<u32>,
-    pub step_type: StepType,
+    pub duration_minutes: u32,
+    pub step_type: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -111,12 +87,51 @@ pub struct CompleteRecipeRequest {
     pub comment: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct CompletedRecipe {
-    pub completion_id: u32,
-    pub user_id: u32,
-    pub recipe_id: u32,
-    pub rating: Option<u32>,
-    pub comment: Option<String>,
-    pub completion_date: NaiveDateTime,
+#[derive(Debug, Deserialize, Validate)]
+pub struct AddRecipeStepRequest {
+    #[validate(range(min = 1, message = "Step order must be at least 1"))]
+    pub step_order: u32,
+
+    #[validate(length(
+        min = 1,
+        max = 5000,
+        message = "Description must be between 1 and 5000 characters"
+    ))]
+    pub description: String,
+
+    #[validate(range(min = 0, message = "Duration cannot be negative"))]
+    pub duration_minutes: Option<u32>,
+
+    #[validate(custom = "validate_step_type")]
+    pub step_type: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct UpdateRecipeStepRequest {
+    #[validate(range(min = 1, message = "Step order must be at least 1"))]
+    pub step_order: u32,
+
+    #[validate(length(
+        min = 1,
+        max = 5000,
+        message = "Description must be between 1 and 5000 characters"
+    ))]
+    pub description: String,
+
+    #[validate(range(min = 0, message = "Duration cannot be negative"))]
+    pub duration_minutes: Option<u32>,
+
+    #[validate(custom = "validate_step_type")]
+    pub step_type: String,
+}
+
+// Fonction de validation personnalisée pour step_type
+fn validate_step_type(step_type: &str) -> Result<(), validator::ValidationError> {
+    if step_type == "cooking" || step_type == "action" {
+        Ok(())
+    } else {
+        Err(validator::ValidationError::new(
+            "Invalid step type. Must be 'cooking' or 'action'",
+        ))
+    }
 }

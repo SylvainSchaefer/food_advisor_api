@@ -91,7 +91,7 @@ impl ImageRepository {
         .execute(&mut *conn)
         .await?;
 
-        let result: (Option<i64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
+        let result: (Option<u64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
             .map(|row: MySqlRow| (row.get(0), row.get(1)))
             .fetch_one(&mut *conn)
             .await?;
@@ -139,7 +139,7 @@ impl ImageRepository {
         .execute(&mut *conn)
         .await?;
 
-        let result: (Option<i64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
+        let result: (Option<u64>, Option<String>) = sqlx::query("SELECT @image_id, @error_msg")
             .map(|row: MySqlRow| (row.get(0), row.get(1)))
             .fetch_one(&mut *conn)
             .await?;

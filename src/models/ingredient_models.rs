@@ -2,19 +2,6 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum MeasurementUnit {
-    Tablespoon,
-    Teaspoon,
-    Liters,
-    Milliliters,
-    Grams,
-    Kilograms,
-    Cups,
-    Pieces,
-}
-
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Ingredient {
     pub ingredient_id: u32,

@@ -1,6 +1,7 @@
 use crate::models::{
-    AddRecipeIngredientRequest, CompleteRecipeRequest, CreateRecipeRequest, PaginatedResponse,
-    PaginationInfo, PaginationParams, TokenClaims, UpdateRecipeRequest,
+    AddRecipeIngredientRequest, AddRecipeStepRequest, CompleteRecipeRequest, CreateRecipeRequest,
+    PaginatedResponse, PaginationInfo, PaginationParams, TokenClaims, UpdateRecipeRequest,
+    UpdateRecipeStepRequest,
 };
 use crate::repositories::RecipeRepository;
 use crate::utils::auth::extract_user_info;
@@ -375,6 +376,182 @@ pub async fn complete_recipe(
             } else {
                 HttpResponse::InternalServerError().json(serde_json::json!({
                     "error": "Failed to complete recipe"
+                }))
+            }
+        }
+    }
+}
+
+/// Récupérer les étapes d'une recette (accessible à tous)
+pub async fn get_recipe_steps(
+    pool: web::Data<MySqlPool>,
+    recipe_id: web::Path<u32>,
+) -> HttpResponse {
+    let recipe_repo = RecipeRepository::new(pool.get_ref().clone());
+
+    match recipe_repo.get_recipe_steps(*recipe_id).await {
+        Ok(steps) => HttpResponse::Ok().json(steps),
+        Err(e) => {
+            log::error!("Failed to retrieve recipe steps: {:?}", e);
+
+            let error_msg = format!("{:?}", e);
+            if error_msg.contains("Recipe not found") {
+                HttpResponse::NotFound().json(serde_json::json!({
+                    "error": "Recipe not found"
+                }))
+            } else {
+                HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to retrieve recipe steps"
+                }))
+            }
+        }
+    }
+}
+
+/// Ajouter une étape à une recette (auteur ou administrateur)
+pub async fn add_recipe_step(
+    pool: web::Data<MySqlPool>,
+    recipe_id: web::Path<u32>,
+    req: web::Json<AddRecipeStepRequest>,
+    claims: web::ReqData<TokenClaims>,
+) -> HttpResponse {
+    let recipe_repo = RecipeRepository::new(pool.get_ref().clone());
+
+    let (user_id, user_role) = match extract_user_info(&claims) {
+        Ok(info) => info,
+        Err(response) => return response,
+    };
+
+    match recipe_repo
+        .add_recipe_step(
+            *recipe_id,
+            req.step_order,
+            &req.description,
+            req.duration_minutes,
+            &req.step_type,
+            user_id,
+            &user_role,
+        )
+        .await
+    {
+        Ok(step_id) => HttpResponse::Created().json(serde_json::json!({
+            "recipe_step_id": step_id,
+            "message": "Recipe step added successfully"
+        })),
+        Err(e) => {
+            log::error!("Failed to add recipe step: {:?}", e);
+
+            let error_msg = format!("{:?}", e);
+            if error_msg.contains("not found") {
+                HttpResponse::NotFound().json(serde_json::json!({
+                    "error": "Recipe not found"
+                }))
+            } else if error_msg.contains("not authorized") {
+                HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "You are not authorized to add steps to this recipe"
+                }))
+            } else if error_msg.contains("Invalid step type") {
+                HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Invalid step type. Must be 'cooking' or 'action'"
+                }))
+            } else {
+                HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to add recipe step"
+                }))
+            }
+        }
+    }
+}
+
+/// Modifier une étape de recette (auteur ou administrateur)
+pub async fn update_recipe_step(
+    pool: web::Data<MySqlPool>,
+    path: web::Path<(u32, u32)>,
+    req: web::Json<UpdateRecipeStepRequest>,
+    claims: web::ReqData<TokenClaims>,
+) -> HttpResponse {
+    let (recipe_id, step_id) = path.into_inner();
+    let recipe_repo = RecipeRepository::new(pool.get_ref().clone());
+
+    let (user_id, user_role) = match extract_user_info(&claims) {
+        Ok(info) => info,
+        Err(response) => return response,
+    };
+
+    match recipe_repo
+        .update_recipe_step(
+            step_id,
+            req.step_order,
+            &req.description,
+            req.duration_minutes,
+            &req.step_type,
+            user_id,
+            &user_role,
+        )
+        .await
+    {
+        Ok(()) => HttpResponse::Ok().json(serde_json::json!({
+            "message": "Recipe step updated successfully"
+        })),
+        Err(e) => {
+            log::error!("Failed to update recipe step: {:?}", e);
+
+            let error_msg = format!("{:?}", e);
+            if error_msg.contains("not found") {
+                HttpResponse::NotFound().json(serde_json::json!({
+                    "error": "Recipe step not found"
+                }))
+            } else if error_msg.contains("not authorized") {
+                HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "You are not authorized to update this recipe step"
+                }))
+            } else if error_msg.contains("Invalid step type") {
+                HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Invalid step type. Must be 'cooking' or 'action'"
+                }))
+            } else {
+                HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to update recipe step"
+                }))
+            }
+        }
+    }
+}
+
+/// Supprimer une étape de recette (auteur ou administrateur)
+pub async fn delete_recipe_step(
+    pool: web::Data<MySqlPool>,
+    path: web::Path<(u32, u32)>,
+    claims: web::ReqData<TokenClaims>,
+) -> HttpResponse {
+    let (recipe_id, step_id) = path.into_inner();
+    let recipe_repo = RecipeRepository::new(pool.get_ref().clone());
+
+    let (user_id, user_role) = match extract_user_info(&claims) {
+        Ok(info) => info,
+        Err(response) => return response,
+    };
+
+    match recipe_repo
+        .delete_recipe_step(step_id, user_id, &user_role)
+        .await
+    {
+        Ok(()) => HttpResponse::NoContent().finish(),
+        Err(e) => {
+            log::error!("Failed to delete recipe step: {:?}", e);
+
+            let error_msg = format!("{:?}", e);
+            if error_msg.contains("not found") {
+                HttpResponse::NotFound().json(serde_json::json!({
+                    "error": "Recipe step not found"
+                }))
+            } else if error_msg.contains("not authorized") {
+                HttpResponse::Forbidden().json(serde_json::json!({
+                    "error": "You are not authorized to delete this recipe step"
+                }))
+            } else {
+                HttpResponse::InternalServerError().json(serde_json::json!({
+                    "error": "Failed to delete recipe step"
                 }))
             }
         }

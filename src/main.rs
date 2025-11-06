@@ -149,6 +149,16 @@ async fn main() -> std::io::Result<()> {
                             .route("", web::get().to(handlers::get_all_recipes))
                             .route("/{id}/image", web::get().to(handlers::get_recipe_image))
                             .route("/{id}/image", web::post().to(handlers::add_recipe_image))
+                            .route("/{id}/steps", web::get().to(handlers::get_recipe_steps))
+                            .route("/{id}/steps", web::post().to(handlers::add_recipe_step))
+                            .route(
+                                "/{id}/steps/{step_id}",
+                                web::put().to(handlers::update_recipe_step),
+                            )
+                            .route(
+                                "/{id}/steps/{step_id}",
+                                web::delete().to(handlers::delete_recipe_step),
+                            )
                             .route("/{id}", web::get().to(handlers::get_recipe))
                             .route("", web::post().to(handlers::create_recipe))
                             .route("/{id}", web::put().to(handlers::update_recipe))

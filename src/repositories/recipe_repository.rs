@@ -1,4 +1,4 @@
-use crate::models::{CompletedRecipe, Recipe, RecipeIngredientDetail, RecipeWithIngredients};
+use crate::models::{Recipe, RecipeIngredientDetail, RecipeStep, RecipeWithIngredients};
 use chrono::{NaiveDateTime, Utc};
 use rust_decimal::Decimal;
 use sqlx::{Error, MySqlPool, Row, mysql::MySqlRow};
@@ -315,6 +315,135 @@ impl RecipeRepository {
             (None, None) => Err(Error::Protocol(
                 "Unknown error completing recipe".to_string(),
             )),
+        }
+    }
+
+    fn get_recipe_step(row: &MySqlRow) -> RecipeStep {
+        let created_at: chrono::DateTime<Utc> = row.get(6);
+        let updated_at: chrono::DateTime<Utc> = row.get(7);
+
+        RecipeStep {
+            recipe_step_id: row.get(0),
+            recipe_id: row.get(1),
+            step_order: row.get(2),
+            description: row.get(3),
+            duration_minutes: row.get(4),
+            step_type: row.get(5),
+            created_at: created_at.naive_utc(),
+            updated_at: updated_at.naive_utc(),
+        }
+    }
+
+    pub async fn get_recipe_steps(&self, recipe_id: u32) -> Result<Vec<RecipeStep>, Error> {
+        let results = sqlx::query("CALL sp_get_recipe_steps(?, @p_error_message)")
+            .bind(recipe_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let steps: Vec<RecipeStep> = results
+            .iter()
+            .map(|row| Self::get_recipe_step(row))
+            .collect();
+
+        Ok(steps)
+    }
+
+    pub async fn add_recipe_step(
+        &self,
+        recipe_id: u32,
+        step_order: u32,
+        description: &str,
+        duration_minutes: Option<u32>,
+        step_type: &str,
+        user_id: u32,
+        user_role: &str,
+    ) -> Result<u32, Error> {
+        let mut conn = self.pool.acquire().await?;
+
+        sqlx::query("CALL sp_add_recipe_step(?, ?, ?, ?, ?, ?, ?, @p_step_id, @p_error_message)")
+            .bind(recipe_id)
+            .bind(step_order)
+            .bind(description)
+            .bind(duration_minutes)
+            .bind(step_type)
+            .bind(user_id)
+            .bind(user_role)
+            .execute(&mut *conn)
+            .await?;
+
+        let result: (Option<i64>, Option<String>) =
+            sqlx::query("SELECT @p_step_id, @p_error_message")
+                .map(|row: MySqlRow| (row.get(0), row.get(1)))
+                .fetch_one(&mut *conn)
+                .await?;
+
+        match result {
+            (Some(step_id), None) => Ok(step_id as u32),
+            (None, Some(error_msg)) => Err(Error::Protocol(error_msg)),
+            (Some(_), Some(error_msg)) => Err(Error::Protocol(error_msg)),
+            (None, None) => Err(Error::Protocol(
+                "Unknown error adding recipe step".to_string(),
+            )),
+        }
+    }
+
+    pub async fn update_recipe_step(
+        &self,
+        recipe_step_id: u32,
+        step_order: u32,
+        description: &str,
+        duration_minutes: Option<u32>,
+        step_type: &str,
+        user_id: u32,
+        user_role: &str,
+    ) -> Result<(), Error> {
+        let mut conn = self.pool.acquire().await?;
+
+        sqlx::query("CALL sp_update_recipe_step(?, ?, ?, ?, ?, ?, ?, @p_error_message)")
+            .bind(recipe_step_id)
+            .bind(step_order)
+            .bind(description)
+            .bind(duration_minutes)
+            .bind(step_type)
+            .bind(user_id)
+            .bind(user_role)
+            .execute(&mut *conn)
+            .await?;
+
+        let error_message: Option<String> = sqlx::query("SELECT @p_error_message")
+            .map(|row: MySqlRow| row.get(0))
+            .fetch_one(&mut *conn)
+            .await?;
+
+        match error_message {
+            None => Ok(()),
+            Some(error_msg) => Err(Error::Protocol(error_msg)),
+        }
+    }
+
+    pub async fn delete_recipe_step(
+        &self,
+        recipe_step_id: u32,
+        user_id: u32,
+        user_role: &str,
+    ) -> Result<(), Error> {
+        let mut conn = self.pool.acquire().await?;
+
+        sqlx::query("CALL sp_delete_recipe_step(?, ?, ?, @p_error_message)")
+            .bind(recipe_step_id)
+            .bind(user_id)
+            .bind(user_role)
+            .execute(&mut *conn)
+            .await?;
+
+        let error_message: Option<String> = sqlx::query("SELECT @p_error_message")
+            .map(|row: MySqlRow| row.get(0))
+            .fetch_one(&mut *conn)
+            .await?;
+
+        match error_message {
+            None => Ok(()),
+            Some(error_msg) => Err(Error::Protocol(error_msg)),
         }
     }
 }

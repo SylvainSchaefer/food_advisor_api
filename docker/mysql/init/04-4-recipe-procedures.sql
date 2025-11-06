@@ -379,6 +379,331 @@ BEGIN
     ORDER BY ri.recipe_id;
 END$$
 
+
+-- Récupérer les étapes d'une recette par ID
+DROP PROCEDURE IF EXISTS sp_get_recipe_steps$$
+CREATE PROCEDURE sp_get_recipe_steps(
+    IN p_recipe_id INT,
+    OUT p_error_message VARCHAR(500)
+)
+BEGIN
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        SET p_error_message = COALESCE(v_sql_error, 'Unknown SQL error occurred');
+        
+        CALL sp_log_error(
+            'SQL_EXCEPTION',
+            p_error_message,
+            JSON_OBJECT(
+                'sql_state', v_sql_state,
+                'mysql_errno', v_mysql_errno,
+                'recipe_id', p_recipe_id,
+                'operation', 'GET_RECIPE_STEPS'
+            ),
+            'sp_get_recipe_steps',
+            NULL
+        );
+        RESIGNAL;
+    END;
+    
+    SET p_error_message = NULL;
+    
+    -- Vérifier que la recette existe
+    IF NOT EXISTS (SELECT 1 FROM recipes WHERE recipe_id = p_recipe_id) THEN
+        SET p_error_message = 'Recipe not found';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Recipe not found';
+    END IF;
+    
+    -- Récupérer les étapes de la recette ordonnées
+    SELECT 
+        rs.recipe_step_id,
+        rs.recipe_id,
+        rs.step_order,
+        rs.description,
+        rs.duration_minutes,
+        rs.step_type,
+        rs.created_at,
+        rs.updated_at
+    FROM recipe_steps rs
+    WHERE rs.recipe_id = p_recipe_id
+    ORDER BY rs.step_order ASC;
+END$$
+
+-- Ajouter une étape à une recette
+DROP PROCEDURE IF EXISTS sp_add_recipe_step$$
+CREATE PROCEDURE sp_add_recipe_step(
+    IN p_recipe_id INT,
+    IN p_step_order INT,
+    IN p_description TEXT,
+    IN p_duration_minutes INT,
+    IN p_step_type VARCHAR(20),
+    IN p_user_id INT,
+    IN p_user_role VARCHAR(50),
+    OUT p_step_id INT,
+    OUT p_error_message VARCHAR(500)
+)
+BEGIN
+    DECLARE v_author_id INT;
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        SET p_error_message = COALESCE(v_sql_error, 'Unknown SQL error occurred');
+        
+        CALL sp_log_error(
+            'SQL_EXCEPTION',
+            p_error_message,
+            JSON_OBJECT(
+                'sql_state', v_sql_state,
+                'mysql_errno', v_mysql_errno,
+                'recipe_id', p_recipe_id,
+                'user_id', p_user_id,
+                'operation', 'ADD_RECIPE_STEP'
+            ),
+            'sp_add_recipe_step',
+            p_user_id
+        );
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    SET p_error_message = NULL;
+    SET p_step_id = NULL;
+    
+    -- Vérifier que la recette existe et récupérer l'auteur
+    SELECT author_user_id INTO v_author_id
+    FROM recipes
+    WHERE recipe_id = p_recipe_id;
+    
+    IF v_author_id IS NULL THEN
+        SET p_error_message = 'Recipe not found';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Recipe not found';
+    END IF;
+    
+    -- Vérifier les permissions (auteur ou admin)
+    IF p_user_id != v_author_id AND p_user_role != 'Administrator' THEN
+        SET p_error_message = 'You are not authorized to add steps to this recipe';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'You are not authorized to add steps to this recipe';
+    END IF;
+    
+    -- Valider le type d'étape
+    IF p_step_type NOT IN ('cooking', 'action') THEN
+        SET p_error_message = 'Invalid step type. Must be cooking or action';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid step type';
+    END IF;
+    
+    -- Valider l'ordre (doit être positif)
+    IF p_step_order < 1 THEN
+        SET p_error_message = 'Step order must be at least 1';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Step order must be at least 1';
+    END IF;
+    
+    -- Insérer l'étape
+    INSERT INTO recipe_steps (
+        recipe_id,
+        step_order,
+        description,
+        duration_minutes,
+        step_type
+    ) VALUES (
+        p_recipe_id,
+        p_step_order,
+        p_description,
+        COALESCE(p_duration_minutes, 0),
+        p_step_type
+    );
+    
+    SET p_step_id = LAST_INSERT_ID();
+    
+    COMMIT;
+END$$
+
+-- Modifier une étape de recette
+DROP PROCEDURE IF EXISTS sp_update_recipe_step$$
+CREATE PROCEDURE sp_update_recipe_step(
+    IN p_recipe_step_id INT,
+    IN p_step_order INT,
+    IN p_description TEXT,
+    IN p_duration_minutes INT,
+    IN p_step_type VARCHAR(20),
+    IN p_user_id INT,
+    IN p_user_role VARCHAR(50),
+    OUT p_error_message VARCHAR(500)
+)
+BEGIN
+    DECLARE v_recipe_id INT;
+    DECLARE v_author_id INT;
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        SET p_error_message = COALESCE(v_sql_error, 'Unknown SQL error occurred');
+        
+        CALL sp_log_error(
+            'SQL_EXCEPTION',
+            p_error_message,
+            JSON_OBJECT(
+                'sql_state', v_sql_state,
+                'mysql_errno', v_mysql_errno,
+                'recipe_step_id', p_recipe_step_id,
+                'user_id', p_user_id,
+                'operation', 'UPDATE_RECIPE_STEP'
+            ),
+            'sp_update_recipe_step',
+            p_user_id
+        );
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    SET p_error_message = NULL;
+    
+    -- Récupérer l'ID de la recette depuis l'étape
+    SELECT recipe_id INTO v_recipe_id
+    FROM recipe_steps
+    WHERE recipe_step_id = p_recipe_step_id;
+    
+    IF v_recipe_id IS NULL THEN
+        SET p_error_message = 'Recipe step not found';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Recipe step not found';
+    END IF;
+    
+    -- Récupérer l'auteur de la recette
+    SELECT author_user_id INTO v_author_id
+    FROM recipes
+    WHERE recipe_id = v_recipe_id;
+    
+    -- Vérifier les permissions (auteur ou admin)
+    IF p_user_id != v_author_id AND p_user_role != 'Administrator' THEN
+        SET p_error_message = 'You are not authorized to update this recipe step';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'You are not authorized to update this recipe step';
+    END IF;
+    
+    -- Valider le type d'étape
+    IF p_step_type NOT IN ('cooking', 'action') THEN
+        SET p_error_message = 'Invalid step type. Must be cooking or action';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid step type';
+    END IF;
+    
+    -- Valider l'ordre
+    IF p_step_order < 1 THEN
+        SET p_error_message = 'Step order must be at least 1';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Step order must be at least 1';
+    END IF;
+    
+    -- Mettre à jour l'étape
+    UPDATE recipe_steps
+    SET 
+        step_order = p_step_order,
+        description = p_description,
+        duration_minutes = COALESCE(p_duration_minutes, 0),
+        step_type = p_step_type,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE recipe_step_id = p_recipe_step_id;
+    
+    COMMIT;
+END$$
+
+-- Supprimer une étape de recette
+DROP PROCEDURE IF EXISTS sp_delete_recipe_step$$
+CREATE PROCEDURE sp_delete_recipe_step(
+    IN p_recipe_step_id INT,
+    IN p_user_id INT,
+    IN p_user_role VARCHAR(50),
+    OUT p_error_message VARCHAR(500)
+)
+BEGIN
+    DECLARE v_recipe_id INT;
+    DECLARE v_author_id INT;
+    DECLARE v_sql_error TEXT;
+    DECLARE v_sql_state CHAR(5) DEFAULT '00000';
+    DECLARE v_mysql_errno INT DEFAULT 0;
+    
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1
+            v_sql_state = RETURNED_SQLSTATE,
+            v_mysql_errno = MYSQL_ERRNO,
+            v_sql_error = MESSAGE_TEXT;
+        
+        SET p_error_message = COALESCE(v_sql_error, 'Unknown SQL error occurred');
+        
+        CALL sp_log_error(
+            'SQL_EXCEPTION',
+            p_error_message,
+            JSON_OBJECT(
+                'sql_state', v_sql_state,
+                'mysql_errno', v_mysql_errno,
+                'recipe_step_id', p_recipe_step_id,
+                'user_id', p_user_id,
+                'operation', 'DELETE_RECIPE_STEP'
+            ),
+            'sp_delete_recipe_step',
+            p_user_id
+        );
+        ROLLBACK;
+        RESIGNAL;
+    END;
+    
+    START TRANSACTION;
+    
+    SET p_error_message = NULL;
+    
+    -- Récupérer l'ID de la recette depuis l'étape
+    SELECT recipe_id INTO v_recipe_id
+    FROM recipe_steps
+    WHERE recipe_step_id = p_recipe_step_id;
+    
+    IF v_recipe_id IS NULL THEN
+        SET p_error_message = 'Recipe step not found';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Recipe step not found';
+    END IF;
+    
+    -- Récupérer l'auteur de la recette
+    SELECT author_user_id INTO v_author_id
+    FROM recipes
+    WHERE recipe_id = v_recipe_id;
+    
+    -- Vérifier les permissions (auteur ou admin)
+    IF p_user_id != v_author_id AND p_user_role != 'Administrator' THEN
+        SET p_error_message = 'You are not authorized to delete this recipe step';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'You are not authorized to delete this recipe step';
+    END IF;
+    
+    -- Supprimer l'étape
+    DELETE FROM recipe_steps
+    WHERE recipe_step_id = p_recipe_step_id;
+    
+    COMMIT;
+END$$
+
 -- Récupérer les recettes d'un utilisateur
 DROP PROCEDURE IF EXISTS sp_get_user_recipes$$
 CREATE PROCEDURE sp_get_user_recipes(
@@ -754,6 +1079,7 @@ BEGIN
     FROM images i
     WHERE i.entity_type = 'recipe'
         AND i.entity_id = p_recipe_id
+    ORDER BY i.image_id DESC
     LIMIT 1;
 END$$
 

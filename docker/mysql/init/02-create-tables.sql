@@ -167,6 +167,7 @@ CREATE TABLE recipe_ingredients (
 
 -- Recipe steps table
 CREATE TABLE recipe_steps (
+    recipe_step_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     recipe_id INT UNSIGNED NOT NULL,
     step_order INT UNSIGNED NOT NULL,
     description TEXT NOT NULL,
@@ -174,8 +175,8 @@ CREATE TABLE recipe_steps (
     step_type ENUM('cooking', 'action') NOT NULL DEFAULT 'action',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (recipe_id, step_order),
-    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id) ON DELETE CASCADE
+    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id) ON DELETE CASCADE,
+    INDEX idx_recipe_order (recipe_id, step_order)
 ) ENGINE=InnoDB;
 
 -- Completed recipes table
