@@ -1,6 +1,7 @@
 pub mod allergy_models;
 pub mod audit_models;
 pub mod image_models;
+pub mod ingredient_categories_models;
 pub mod ingredient_models;
 pub mod pagination_models;
 pub mod recipe_models;
@@ -10,6 +11,7 @@ pub mod user_preferences_models;
 pub use allergy_models::*;
 pub use audit_models::*;
 pub use image_models::*;
+pub use ingredient_categories_models::*;
 pub use ingredient_models::*;
 pub use pagination_models::*;
 pub use recipe_models::*;

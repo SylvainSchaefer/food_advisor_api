@@ -204,6 +204,33 @@ async fn main() -> std::io::Result<()> {
                                 "/ingredients/{id}",
                                 web::delete().to(handlers::remove_ingredient_preference),
                             ),
+                    )
+                    .service(
+                        web::scope("/categories")
+                            .wrap(auth.clone())
+                            // Routes accessibles à tous les utilisateurs authentifiés
+                            .route("", web::get().to(handlers::get_all_categories))
+                            .route("/{id}", web::get().to(handlers::get_category))
+                            .route(
+                                "/{id}/ingredients",
+                                web::get().to(handlers::get_category_ingredients),
+                            )
+                            // Routes réservées aux administrateurs
+                            .service(
+                                web::scope("")
+                                    .wrap(AdminOnly)
+                                    .route("", web::post().to(handlers::create_category))
+                                    .route("/{id}", web::put().to(handlers::update_category))
+                                    .route("/{id}", web::delete().to(handlers::delete_category))
+                                    .route(
+                                        "/{id}/ingredients",
+                                        web::post().to(handlers::add_ingredient_to_category),
+                                    )
+                                    .route(
+                                        "/{category_id}/ingredients/{ingredient_id}",
+                                        web::delete().to(handlers::remove_ingredient_from_category),
+                                    ),
+                            ),
                     ),
             )
     })

@@ -11,7 +11,7 @@ impl IngredientRepository {
         Self { pool }
     }
 
-    fn get_ingredient(row: &MySqlRow) -> Ingredient {
+    pub fn get_ingredient(row: &MySqlRow) -> Ingredient {
         Ingredient {
             ingredient_id: row.get(0),
             name: row.get(1),

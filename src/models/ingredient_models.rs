@@ -43,15 +43,6 @@ pub struct UpdateIngredientRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct IngredientCategory {
-    pub category_id: u32,
-    pub name: String,
-    pub description: Option<String>,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct IngredientCategoryAssignment {
     pub ingredient_id: u32,
     pub category_id: u32,
