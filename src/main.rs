@@ -172,6 +172,38 @@ async fn main() -> std::io::Result<()> {
                                 web::delete().to(handlers::remove_recipe_ingredient),
                             )
                             .route("/{id}/complete", web::post().to(handlers::complete_recipe)),
+                    )
+                    .service(
+                        web::scope("/preferences")
+                            .wrap(auth.clone())
+                            // Toutes les préférences
+                            .route("", web::get().to(handlers::get_all_preferences))
+                            // Préférences de catégories
+                            .route(
+                                "/categories",
+                                web::get().to(handlers::get_category_preferences),
+                            )
+                            .route(
+                                "/categories/{id}",
+                                web::put().to(handlers::set_category_preference),
+                            )
+                            .route(
+                                "/categories/{id}",
+                                web::delete().to(handlers::remove_category_preference),
+                            )
+                            // Préférences d'ingrédients
+                            .route(
+                                "/ingredients",
+                                web::get().to(handlers::get_ingredient_preferences),
+                            )
+                            .route(
+                                "/ingredients/{id}",
+                                web::put().to(handlers::set_ingredient_preference),
+                            )
+                            .route(
+                                "/ingredients/{id}",
+                                web::delete().to(handlers::remove_ingredient_preference),
+                            ),
                     ),
             )
     })

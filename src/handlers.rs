@@ -3,6 +3,7 @@ pub mod image_handler;
 pub mod ingredient_handler;
 pub mod recipe_handler;
 pub mod user_handler;
+pub mod user_preferences_handler;
 
 // Ré-exports optionnels pour simplifier les imports
 pub use admin_handler::{create_admin, get_all_users};
@@ -16,3 +17,4 @@ pub use recipe_handler::{
     remove_recipe_ingredient, update_recipe, update_recipe_step,
 };
 pub use user_handler::{login, register};
+pub use user_preferences_handler::*;

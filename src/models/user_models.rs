@@ -17,13 +17,6 @@ pub enum Role {
     Regular,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
-#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
-pub enum PreferenceType {
-    Excluded,
-    Preferred,
-}
-
 /// Structure pour les claims JWT (légère, seulement ce qui est nécessaire)
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TokenClaims {
@@ -102,45 +95,4 @@ pub struct ProfileResponse {
     pub country: Option<String>,
     pub city: Option<String>,
     pub created_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct UserSession {
-    pub session_id: u32,
-    pub user_id: u32,
-    pub session_token: String,
-    pub ip_address: Option<String>,
-    pub user_agent: Option<String>,
-    pub login_time: NaiveDateTime,
-    pub logout_time: Option<NaiveDateTime>,
-    pub last_activity: NaiveDateTime,
-    pub is_active: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct UserIngredientPreference {
-    pub user_id: u32,
-    pub ingredient_id: u32,
-    pub preference_type: PreferenceType,
-    pub created_at: NaiveDateTime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct UserIngredientStock {
-    pub stock_id: u32,
-    pub user_id: u32,
-    pub ingredient_id: u32,
-    pub quantity: f64,
-    pub expiration_date: Option<NaiveDate>,
-    pub storage_location: Option<String>,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct UserIngredientCategoryPreference {
-    pub user_id: u32,
-    pub category_id: u32,
-    pub preference_type: PreferenceType,
-    pub created_at: NaiveDateTime,
 }
